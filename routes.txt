@@ -1,0 +1,165 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+2155,1,101,Londyńska - Śląska Pole Golfowe,,3,,00B050,F5F5F5
+2152,1,101,Śląska Pole Golfowe - Londyńska,,3,,4F6128,F5F5F5
+39,1,111,Śląska Pole Golfowe - Chwalęcice Kościelna,,3,,008000,F5F5F5
+54,1,111,Chwalęcice Kościelna - Śląska Pole Golfowe,,3,,00B050,F5F5F5
+2381,1,106,AWF - Odlewników,,3,,953734,F5F5F5
+2497,1,106,Odlewników - AWF,,3,,A52A2A,F5F5F5
+692,1,130,AWF - Baczyna,,3,,5F497A,F5F5F5
+872,1,130,Baczyna - Rondo Szczecińskie,,3,,00B050,F5F5F5
+327,1,136,Śląska Pole Golfowe - Małyszyńska,,3,,00CED1,282828
+336,1,136,Małyszyńska - Śląska Pole Golfowe,,3,,00CED1,282828
+1262,1,126,Rondo Myśliborskie - Dekerta Szpital,,3,,E36C09,282828
+309,1,126,Dekerta Szpital - TPV,,3,,00B0F0,282828
+258,1,104,TPV - Bora-Komorowskiego,,3,,0066CC,F5F5F5
+8,1,104,Bora-Komorowskiego - Słowiańska,,3,,953734,F5F5F5
+1529,1,104,Słowiańska - Bora-Komorowskiego,,3,,F00000,F5F5F5
+27,1,103,Słowiańska - Strażacka,,3,,4BACC6,282828
+25,1,103,Strażacka - Słowiańska,,3,,4F6128,F5F5F5
+1,1,126,Os. Staszica - Dekerta Szpital,,3,,205867,F5F5F5
+360,1,135,Dekerta Szpital - Małyszyńska,,3,,F00000,F5F5F5
+385,1,135,Małyszyńska - Dekerta Szpital,,3,,F00000,F5F5F5
+11,1,126,Dekerta Szpital - Os. Staszica,,3,,953734,F5F5F5
+2242,1,123,Bora-Komorowskiego - TPV,,3,,FF1493,F5F5F5
+288,1,126,TPV - Dekerta Szpital,,3,,00B0F0,282828
+2868,1,132,Bora-Komorowskiego - Cmentarz Brama II,,3,,953734,F5F5F5
+2867,1,132,Cmentarz Brama II - Bora-Komorowskiego,,3,,D99694,282828
+2499,1,109,Londyńska - Fieldorfa""Nila"",,3,,953734,F5F5F5
+2276,1,123,TPV - Bora-Komorowskiego,,3,,FF1493,F5F5F5
+1831,1,1,Wieprzyce PKP - Fieldorfa""Nila"",,0,,0070C0,F5F5F5
+1689,1,3,Fieldorfa""Nila"" - Piaski,,0,,E36C09,282828
+1682,1,3,Piaski - Fieldorfa""Nila"",,0,,974806,F5F5F5
+1744,1,1,Fieldorfa""Nila"" - Wieprzyce PKP,,0,,00B0F0,282828
+2501,1,109,Fieldorfa""Nila"" - Londyńska,,3,,FF1493,F5F5F5
+16,1,125,Dekerta Szpital - Śląska Pole Golfowe,,3,,E36A08,282828
+9,1,124,Os. Staszica - Prefadom,,3,,7030A0,F5F5F5
+42,1,2,Piaski - Wieprzyce PKP,,0,,F00000,F5F5F5
+2263,1,134,Strażacka - Dekerta Szpital,,3,,A12600,F5F5F5
+44,1,111,Cmentarz Brama II - Śląska Pole Golfowe,,3,,D99694,282828
+6,1,125,Śląska Pole Golfowe - Dekerta Szpital,,3,,974806,F5F5F5
+2266,1,119,Zajezdnia Kostrzyńska - Chróścik INNEKO,,3,,F00000,F5F5F5
+2290,1,119,Chróścik INNEKO - Zajezdnia Kostrzyńska,,3,,F00000,F5F5F5
+2140,1,510,Zajezdnia Kostrzyńska - Zajezdnia Kostrzyńska,,3,,0070C0,F5F5F5
+2697,1,511,Zajezdnia Kostrzyńska - Zajezdnia Kostrzyńska,,3,,E36C09,282828
+2698,1,512,Zajezdnia Kostrzyńska - Zajezdnia Kostrzyńska,,3,,00B0F0,282828
+14,1,2,Wieprzyce PKP - Piaski,,0,,00B050,F5F5F5
+343,1,104,Bora-Komorowskiego - TPV,,3,,0066CC,F5F5F5
+1372,1,104,Rondo Szczecińskie - Bora-Komorowskiego,,3,,FE632D,282828
+2241,1,108,Strażacka - Os. Staszica,,3,,C0504D,F5F5F5
+2232,1,402,Os. Staszica - Zajezdnia Kostrzyńska,,3,,953734,F5F5F5
+2259,1,119,TPV - Zajezdnia Kostrzyńska,,3,,D60093,F5F5F5
+1373,1,136,Krzywoustego - Małyszyńska,,3,,00CED1,282828
+2285,1,134,Dekerta Szpital - Strażacka,,3,,F00000,F5F5F5
+417,1,401,Zajezdnia Kostrzyńska - Śląska Pole Golfowe,,3,,DA70D6,282828
+843,1,103,AWF - Strażacka,,3,,8B4513,F5F5F5
+34,1,111,Śląska Pole Golfowe - Cmentarz Brama II,,3,,F00000,F5F5F5
+1377,1,103,Rondo Szczecińskie - Strażacka,,3,,A5853A,282828
+1895,1,4,Fieldorfa""Nila"" - Dworzec Główny,,0,,CCC1D9,282828
+1977,1,4,Dworzec Główny - Fieldorfa""Nila"",,0,,7030A0,F5F5F5
+2249,1,121,Śląska Pole Golfowe - TPV,,3,,E36C09,282828
+265,1,121,TPV - Śląska Pole Golfowe,,3,,F00000,F5F5F5
+410,1,401,Śląska Pole Golfowe - Zajezdnia Kostrzyńska,,3,,953734,F5F5F5
+664,1,103,Strażacka - TPV,,3,,8A2BE2,F5F5F5
+666,1,103,TPV - Strażacka,,3,,8A2BE2,F5F5F5
+2811,1,100,Katedra - Siedlice Ujęcie Wody,,3,,C00000,F5F5F5
+2805,1,100,Siedlice Ujęcie Wody - Os. Staszica,,3,,00B050,F5F5F5
+2800,1,100,Os. Staszica - Siedlice Ujęcie Wody,,3,,0070C0,F5F5F5
+2798,1,112,Os. Staszica - Łagodzin,,3,,B48700,282828
+2794,1,112,Łagodzin - Os. Staszica,,3,,C49300,282828
+1431,1,103,Strażacka - Rondo Szczecińskie,,3,,008B8B,F5F5F5
+951,1,113,AWF - Wawrów Stadion,,3,,F00000,F5F5F5
+1027,1,113,Wawrów Stadion - TPV,,3,,FF00FF,F5F5F5
+1029,1,113,TPV - Wawrów Stadion,,3,,FF00FF,F5F5F5
+12,1,113,Wawrów Stadion - Os. Staszica,,3,,9D7DD8,282828
+13,1,113,Os. Staszica - Wawrów Stadion,,3,,7030A0,F5F5F5
+2814,1,107,Działkowców - Drozdowa Ogrody Działkowe,,3,,00B050,F5F5F5
+148,1,110,Drozdowa Ogrody Działkowe - Os. Staszica,,3,,E36C09,282828
+2716,1,116,Os. Staszica - Strażacka,,3,,E36C09,282828
+2713,1,116,Strażacka - Os. Staszica,,3,,C0504D,F5F5F5
+2295,1,108,Os. Staszica - Strażacka,,3,,E36C09,282828
+1425,1,122,Wawrów Dolny - Os. Staszica,,3,,E36C09,282828
+2179,1,113,Os. Staszica - Wawrów Sadowa,,3,,7030A0,F5F5F5
+2188,1,113,Wawrów Sadowa - Os. Staszica,,3,,9D7DD8,282828
+871,1,103,Rondo Myśliborskie - Strażacka,,3,,8B4513,F5F5F5
+5,1,124,Prefadom - Os. Staszica,,3,,AF156C,F5F5F5
+420,1,122,Os. Staszica - Janice,,3,,00B0F0,282828
+399,1,122,Janice - Os. Staszica,,3,,00B0F0,282828
+2810,1,100,Siedlice Ujęcie Wody - TPV,,3,,00B050,F5F5F5
+2793,1,100,TPV - Siedlice Ujęcie Wody,,3,,00B050,F5F5F5
+2816,1,100,Siedlice Ujęcie Wody - Katedra,,3,,31859B,F5F5F5
+2707,1,120,AWF - Odlewników,,3,,5F497A,F5F5F5
+2705,1,120,Odlewników - AWF,,3,,7030A0,F5F5F5
+2230,1,119,Małyszyńska - Zajezdnia Kostrzyńska,,3,,7030A0,F5F5F5
+2701,1,131,Baczyna - AWF,,3,,A52A2A,F5F5F5
+426,1,122,Os. Staszica - Czechów,,3,,F79342,282828
+413,1,122,Czechów - Os. Staszica,,3,,E36C09,282828
+2562,1,124,Os. Staszica - Jedwabnicza Park Handlowy,,3,,2BA464,F5F5F5
+2559,1,124,Jedwabnicza Park Handlowy - Os. Staszica,,3,,65D708,282828
+81,1,110,Os. Staszica - Drozdowa Ogrody Działkowe,,3,,E36C09,282828
+2812,1,107,Działkowców Pętla  - Drozdowa Ogrody Działkowe,,3,,F00000,F5F5F5
+2260,1,402,Zajezdnia Kostrzyńska - Os. Staszica,,3,,F00000,F5F5F5
+2813,1,127,Os. Staszica - Łagodzin,,3,,974806,F5F5F5
+2802,1,107,Drozdowa Ogrody Działkowe - Działkowców Pętla ,,3,,F00000,F5F5F5
+2772,1,115,Londyńska - Piaski,,3,,00B050,F5F5F5
+2771,1,115,Piaski - Londyńska,,3,,000000,F5F5F5
+2337,1,122,Os. Staszica - Wawrów Dolny,,3,,F79646,282828
+2708,1,131,AWF - Stanowice,,3,,76923C,F5F5F5
+2704,1,131,Stanowice - AWF,,3,,E36C09,282828
+2944,1,128,Piaski - Jedwabnicza Park Handlowy,,3,,92CDDC,282828
+844,1,104,Bora-Komorowskiego - Rondo Szczecińskie,,3,,808000,F5F5F5
+2706,1,131,AWF - Baczyna,,3,,953734,F5F5F5
+2796,1,127,Os. Staszica - Kasprzaka Terminal,,3,,0070C0,F5F5F5
+204,1,114,Bora-Komorowskiego - Rondo Sybiraków,,3,,974806,F5F5F5
+210,1,114,Rondo Sybiraków - Bora-Komorowskiego,,3,,E36C09,282828
+2227,1,130,Rondo Małyszyńskie - Stanowice,,3,,938953,282828
+2803,1,127,Kasprzaka Terminal - Os. Staszica,,3,,0070C0,F5F5F5
+2271,1,108,AWF - Strażacka,,3,,E36C09,282828
+109,1,104,AWF - Bora-Komorowskiego,,3,,BE8F00,282828
+1511,1,130,Stanowice - AWF,,3,,938953,282828
+2561,1,124,Jedwabnicza Park Handlowy - Staszica,,3,,06C79C,282828
+2563,1,111,Chwalęcice Kościelna - Rondo Kos. Gdyńskich,,3,,008000,F5F5F5
+2564,1,510,Rondo Kos. Gdyńskich - Zajezdnia Kostrzyńska,,3,,0070C0,F5F5F5
+453,1,122,Os. Staszica - Czechów SARRIS DARM,,3,,974806,F5F5F5
+2849,1,113,Wawrów Sadowa - AWF,,3,,9D7DD8,282828
+2852,1,113,Wawrów Stadion - AWF,,3,,9D7DD8,282828
+472,1,122,Czechów SARRIS DARM - Os. Staszica,,3,,974806,F5F5F5
+847,1,126,AWF - Dekerta Szpital,,3,,E36C09,282828
+2850,1,122,Czechów - AWF,,3,,E36C09,282828
+2699,1,511,Dworcowa - Zajezdnia Kostrzyńska,,3,,E36C09,282828
+1438,1,111,Katedra - Chwalęcice Kościelna,,3,,F00000,F5F5F5
+2847,1,125,Dekerta Szpital - Jagiełły,,3,,E36A08,282828
+2801,1,127,Łagodzin - Os. Staszica,,3,,974806,F5F5F5
+2799,1,112,Łagodzin - AWF,,3,,C49300,282828
+2258,1,122,AWF - Janice,,3,,00B0F0,282828
+47,1,102,Bogusławskiego - Śląska Pole Golfowe,,3,,953734,F5F5F5
+2248,1,102,Rondo Górczyńskie - Śląska Pole Golfowe,,3,,953734,F5F5F5
+185,1,102,Śląska Pole Golfowe - Dekerta Szpital,,3,,CD853F,282828
+1673,1,125,Katedra - Dekerta Szpital,,3,,974806,F5F5F5
+845,1,122,AWF - Czechów,,3,,FF3300,F5F5F5
+2703,1,135,Dekerta Szpital - Rondo Myśliborskie,,3,,205867,F5F5F5
+1175,1,117,AWF - Chróścik,,3,,000066,F5F5F5
+2079,1,117,Chróścik - AWF,,3,,00B0F0,282828
+690,1,130,Baczyna - AWF,,3,,7030A0,F5F5F5
+202,1,119,Chróścik - Zajezdnia Kostrzyńska,,3,,F00000,F5F5F5
+2804,1,112,Os. Staszica - Łagodzin,,3,,00B050,F5F5F5
+2808,1,127,AWF - Kasprzaka Terminal,,3,,0070C0,F5F5F5
+2560,1,124,Jagiełły - Jedwabnicza Park Handlowy,,3,,2BA464,F5F5F5
+2851,1,122,Janice - AWF,,3,,00B0F0,282828
+2807,1,112,AWF - Łagodzin,,3,,B48700,282828
+2256,1,119,Zajezdnia Kostrzyńska - Chróścik,,3,,0070C0,F5F5F5
+2275,1,119,Zajezdnia Kostrzyńska - Małyszyńska,,3,,F00000,F5F5F5
+1165,1,117,Małyszyńska - AWF,,3,,7030A0,F5F5F5
+1510,1,130,AWF - Stanowice,,3,,938953,282828
+2797,1,105,Londyńska - Cmentarz Brama II,,3,,7030A0,F5F5F5
+2569,1,105,Cmentarz Brama II - Londyńska,,3,,00B0F0,282828
+2234,1,119,Chróścik - Zajezdnia Kostrzyńska,,3,,0070C0,F5F5F5
+2296,1,401,Katedra - Zajezdnia Kostrzyńska,,3,,953734,F5F5F5
+46,1,113,Rondo Sybiraków - Os. Staszica,,3,,F00000,F5F5F5
+2235,1,130,Rondo Małyszyńskie - Baczyna,,3,,5F497A,F5F5F5
+1164,1,117,AWF - Małyszyńska,,3,,7030A0,F5F5F5
+2945,1,128,Jedwabnicza Park Handlowy - Piaski,,3,,000000,F5F5F5
+1366,1,135,GLS - Małyszyńska,,3,,F00000,F5F5F5
+2503,1,109,Szarych Szeregów - Londyńska,,3,,FF1493,F5F5F5
+2519,1,108,Strażacka - AWF,,3,,C0504D,F5F5F5
+1426,1,122,Os. Staszica - Wawrów Dolny,,3,,F79646,282828
+2709,1,120,Odlewników - Rondo Szczecińskie,,3,,7030A0,F5F5F5
