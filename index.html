@@ -1,136 +1,599 @@
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tablica Odjazdów MZK Gorzów - Stilon</title>
+    <title>MZK Gorzów Wlkp. – GTFS (Główne) + Live API (Opóźnienia)</title>
     <style>
-        body {
-            background-color: #111;
+        :root {
+            --bg: #ffffff;
+            --text: #000000;
+            --gray-light: #f4f4f4;
+            --gray-border: #b0b0b0;
+            --gray-dark: #333333;
+            --danger: #cc0000;
+            --success: #006600;
+            --info: #0044cc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
+        body { background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.35; }
+
+        header {
+            background: var(--gray-dark);
             color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            padding: 20px;
-        }
-        .board {
-            background: #000;
-            border: 4px solid #333;
-            border-radius: 8px;
-            width: 100%;
-            max-width: 500px;
-            padding: 15px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-        }
-        .header {
-            font-size: 1.2rem;
-            font-weight: bold;
-            text-align: center;
-            border-bottom: 2px solid #ff9900;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            color: #ff9900;
-        }
-        .departure-row {
+            padding: 10px 15px;
             display: flex;
             justify-content: space-between;
-            padding: 8px 5px;
-            border-bottom: 1px solid #222;
-            font-size: 1.1rem;
+            align-items: center;
+            border-bottom: 3px solid #000;
         }
-        .line {
-            color: #ff9900;
+
+        .logo-title { font-weight: bold; font-size: 1rem; text-transform: uppercase; }
+        .clock { font-size: 0.9rem; font-weight: bold; }
+
+        nav {
+            display: flex;
+            background: var(--gray-light);
+            border-bottom: 1px solid var(--gray-border);
+        }
+
+        .nav-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            border-right: 1px solid var(--gray-border);
+            padding: 10px 5px;
             font-weight: bold;
-            width: 40px;
-        }
-        .direction {
-            flex-grow: 1;
-            padding-left: 10px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .time {
-            color: #00ff00;
-            font-weight: bold;
-            text-align: right;
-            min-width: 70px;
-        }
-        .loading, .error {
+            font-size: 0.85rem;
+            cursor: pointer;
             text-align: center;
-            color: #888;
-            padding: 20px;
+            color: var(--gray-dark);
         }
-        .error { color: #ff3333; }
+        .nav-btn:last-child { border-right: none; }
+        .nav-btn.active { background: #fff; color: #000; border-bottom: 2px solid #000; }
+
+        .container { max-width: 750px; margin: 0 auto; padding: 10px; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--gray-border);
+            border-radius: 0;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #000; }
+
+        .row-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .row-item:hover { background: var(--gray-light); }
+
+        .badge {
+            display: inline-block;
+            border: 1px solid #000;
+            padding: 2px 5px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            min-width: 30px;
+            text-align: center;
+            background: #fff;
+            color: #000;
+        }
+
+        .back-btn {
+            background: var(--gray-light);
+            border: 1px solid var(--gray-border);
+            padding: 5px 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+        }
+        .back-btn:hover { background: #e0e0e0; }
+
+        .dep-row {
+            padding: 8px 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .time-box { text-align: right; }
+        .time-main { font-weight: bold; font-size: 1rem; }
+        .countdown-info { font-size: 0.75rem; font-weight: bold; color: var(--info); }
+        .delay-info { font-size: 0.65rem; font-weight: bold; }
+        .delay-info.late { color: var(--danger); }
+        .delay-info.on-time { color: var(--success); }
+
+        .filter-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-bar select {
+            padding: 5px;
+            border: 1px solid var(--gray-border);
+            background: #fff;
+            font-size: 0.85rem;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--gray-light);
+            border-top: 1px solid var(--gray-border);
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            color: var(--gray-dark);
+            display: flex;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        
+        .msg-box { text-align: center; padding: 20px; color: #555; }
     </style>
 </head>
 <body>
 
-    <div class="board">
-        <div id="stop-name" class="header">MZK Gorzów - Ładowanie...</div>
-        <div id="departures-list">
-            <div class="loading">Pobieranie oficjalnych danych live dla przystanku Stilon...</div>
-        </div>
-    </div>
+<header>
+    <div class="logo-title">MZK Gorzów Wlkp. – GTFS + Live API</div>
+    <div class="clock" id="clock">--:--:--</div>
+</header>
 
-    <script>
-        // Identyfikator oficjalny dla przystanku Stilon
-        const STOP_ID = "112"; 
-        
-        // Adres oficjalnego API Trapeze w Gorzowie
-        const OFFICIAL_API_URL = `https://gorzow.pl{STOP_ID}`;
-        
-        // Wykorzystanie proxy do ominięcia ograniczeń CORS w przeglądarce
-        const PROXY_URL = "https://allorigins.win" + encodeURIComponent(OFFICIAL_API_URL);
+<nav>
+    <button class="nav-btn active" onclick="switchTab('stops')">Przystanki</button>
+    <button class="nav-btn" onclick="switchTab('lines')">Linie</button>
+    <button class="nav-btn" onclick="switchTab('live')">GPS Na Żywo</button>
+</nav>
 
-        async function fetchMzkData() {
-            try {
-                const response = await fetch(PROXY_URL);
-                if (!response.ok) throw new Error("Błąd sieci");
-                
-                const wrapper = await response.json();
-                const data = JSON.parse(wrapper.contents); 
+<div class="container" style="padding-bottom: 40px;">
+    <!-- PRZYSTANKI -->
+    <section id="sec-stops" class="section active">
+        <input type="text" id="stop-search" placeholder="Wpisz nazwę przystanku..." oninput="filterStops(this.value)">
+        <div id="stops-list" class="msg-box">Ładowanie danych statycznych GTFS...</div>
+    </section>
 
-                const listContainer = document.getElementById("departures-list");
-                const stopHeader = document.getElementById("stop-name");
+    <!-- LINIE -->
+    <section id="sec-lines" class="section">
+        <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
+    </section>
 
-                if (data.stopName) {
-                    stopHeader.innerText = data.stopName;
-                }
+    <!-- POJAZDY GPS -->
+    <section id="sec-live" class="section">
+        <div id="live-list" class="msg-box">Pobieranie pozycji pojazdów...</div>
+    </section>
 
-                listContainer.innerHTML = "";
+    <!-- SZCZEGÓŁY ODJAZDÓW -->
+    <section id="sec-details" class="section">
+        <button class="back-btn" onclick="switchTab(window.appState.lastTab || 'stops')">&larr; Powrót</button>
+        <div id="details-content"></div>
+    </section>
+</div>
 
-                if (!data.departures || data.departures.length === 0) {
-                    listContainer.innerHTML = '<div class="loading">Brak zaplanowanych odjazdów w najbliższym czasie.</div>';
-                    return;
-                }
+<div class="status-bar">
+    <span id="status-text">Inicjalizacja...</span>
+    <span id="api-status">GTFS-First Engine</span>
+</div>
 
-                data.departures.forEach(item => {
-                    const row = document.createElement("div");
-                    row.className = "departure-row";
+<script>
+const PROXY_URL = "https://shiny-tree-3a9b.fabianzukowski-32.workers.dev/"; 
+const TOKEN = "iwa_live_tlv2api_b065655533f6d1b185f5d916ea359a8cd6cf7c545b7c54ae1B9Wj9";
 
-                    // Wyświetlanie surowych, oficjalnych danych z Gorzowa: linia, kierunek, czas rzeczywisty
-                    row.innerHTML = `
-                        <span class="line">${item.line || ''}</span>
-                        <span class="direction">${item.direction || ''}</span>
-                        <span class="time">${item.time || ''}</span>
-                    `;
-                    listContainer.appendChild(row);
-                });
+window.appState = {
+    stopsMap: new Map(),      // stop_id -> stop_name
+    routesMap: new Map(),     // route_id -> route_short_name
+    stopTimes: [],            // stop_times.txt
+    tripsMap: new Map(),      // trip_id -> { route_id, trip_headsign }
+    vehicles: [],             // pojazdy z API
+    stops: [],                // zagregowane przystanki z GTFS
+    lines: [],                // unikalne linie z GTFS
+    lastTab: 'stops',
+    currentDeps: [],          
+    currentStopName: ''
+};
 
-            } catch (err) {
-                console.error(err);
-                document.getElementById("departures-list").innerHTML = 
-                    `<div class="error">Nie udało się pobrać danych z oficjalnego serwera komunikacji.</div>`;
+function parseCSV(text) {
+    const lines = text.replace(/\r/g, '').split('\n');
+    if (lines.length < 2) return [];
+    
+    const parseLine = (line) => {
+        const result = [];
+        let inQuotes = false;
+        let entry = '';
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(entry.trim());
+                entry = '';
+            } else {
+                entry += char;
             }
         }
+        result.push(entry.trim());
+        return result;
+    };
 
-        // Pobranie danych na starcie
-        fetchMzkData();
+    const headers = parseLine(lines[0]);
+    const data = [];
 
-        // Automatyczne odświeżanie tablicy co 30 sekund
-        setInterval(fetchMzkData, 30000);
-    </script>
+    for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const currentLine = parseLine(lines[i]);
+        const obj = {};
+        for (let j = 0; j < headers.length; j++) {
+            obj[headers[j]] = currentLine[j] !== undefined ? currentLine[j].replace(/^"|"$/g, '') : '';
+        }
+        data.push(obj);
+    }
+    return data;
+}
 
+async function loadStaticGTFS() {
+    try {
+        const [stopsRes, routesRes, tripsRes, stopTimesRes] = await Promise.all([
+            fetch('./gtfs/stops.txt').catch(() => null),
+            fetch('./gtfs/routes.txt').catch(() => null),
+            fetch('./gtfs/trips.txt').catch(() => null),
+            fetch('./gtfs/stop_times.txt').catch(() => null)
+        ]);
+
+        if (stopsRes && stopsRes.ok) {
+            parseCSV(await stopsRes.text()).forEach(r => window.appState.stopsMap.set(r.stop_id, r.stop_name));
+        }
+        if (routesRes && routesRes.ok) {
+            parseCSV(await routesRes.text()).forEach(r => window.appState.routesMap.set(r.route_id, r.route_short_name || r.route_long_name));
+        }
+        if (tripsRes && tripsRes.ok) {
+            parseCSV(await tripsRes.text()).forEach(r => window.appState.tripsMap.set(r.trip_id, {
+                route_id: r.route_id,
+                trip_headsign: r.trip_headsign
+            }));
+        }
+        if (stopTimesRes && stopTimesRes.ok) {
+            window.appState.stopTimes = parseCSV(await stopTimesRes.text());
+        }
+    } catch (e) {
+        console.warn("Błąd wczytywania lokalnych plików GTFS:", e);
+    }
+}
+
+async function fetchAPI(command, action, params = '') {
+    const targetUrl = `https://komunikacja.um.gorzow.pl/vm/main?command=${command}&action=${action}&token=${TOKEN}${params}`;
+    try {
+        const res = await fetch(PROXY_URL + "?url=" + encodeURIComponent(targetUrl));
+        if (!res.ok) return null;
+        const text = await res.text();
+        if (!text || text.trim().startsWith('<') || text.includes('Cloudflare')) return null;
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("Błąd API:", e);
+        return null;
+    }
+}
+
+async function initApp() {
+    startClock();
+    document.getElementById('status-text').innerText = 'Wczytywanie statycznego GTFS (źródło główne)...';
+    await loadStaticGTFS();
+
+    // Budowanie przystanków bazując w 100% na statycznym GTFS (stops.txt)
+    const groupedMap = new Map();
+    window.appState.stopsMap.forEach((gtfsName, gtfsId) => {
+        let cleanName = gtfsName.replace(/\s*\(\d+\)\s*$/, '').trim();
+        if (!groupedMap.has(cleanName)) {
+            groupedMap.set(cleanName, { name: cleanName, ids: [gtfsId] });
+        } else if (!groupedMap.get(cleanName).ids.includes(gtfsId)) {
+            groupedMap.get(cleanName).ids.push(gtfsId);
+        }
+    });
+
+    window.appState.stops = Array.from(groupedMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+
+    // Budowanie linii bazując na routes.txt z GTFS
+    const linesMap = new Map();
+    window.appState.routesMap.forEach((rName, rId) => {
+        linesMap.set(rName, { id: rName, name: `Linia ${rName}` });
+    });
+    window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, {numeric: true}));
+
+    renderStops();
+    renderLines();
+
+    // Pobieranie danych żywych (opóźnienia / pozycje pojazdów) w tle jako dodatek
+    document.getElementById('status-text').innerText = 'Pobieranie opóźnień z API...';
+    const vehiclesData = await fetchAPI('planner', 'v');
+    window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
+    
+    renderLive();
+    document.getElementById('status-text').innerText = 'Gotowy – GTFS (Główne) + API Opóźnień aktywne';
+}
+
+function startClock() {
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL');
+    }, 1000);
+}
+
+function switchTab(tab) {
+    if (tab !== 'details') window.appState.lastTab = tab;
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    
+    const targetSec = document.getElementById(`sec-${tab}`);
+    if (targetSec) targetSec.classList.add('active');
+
+    if (tab !== 'details') {
+        const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(tab));
+        if (btn) btn.classList.add('active');
+    }
+}
+
+function renderStops() { filterStops(''); }
+
+function filterStops(query) {
+    const box = document.getElementById('stops-list');
+    if (!window.appState.stops.length) {
+        box.innerHTML = '<div class="msg-box">Brak danych przystanków w plikach GTFS (stops.txt).</div>';
+        return;
+    }
+    const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
+    if (!filtered.length) {
+        box.innerHTML = '<div class="msg-box">Nie znaleziono przystanku.</div>';
+        return;
+    }
+    box.innerHTML = filtered.map(s => `
+        <div class="row-item" onclick='loadGroupedDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)})'>
+            <div><strong>${s.name}</strong></div>
+            <div style="font-size: 0.75rem; color: #555;">rozkład GTFS &rarr;</div>
+        </div>
+    `).join('');
+}
+
+async function loadGroupedDepartures(stopIds, stopName) {
+    switchTab('details');
+    window.appState.currentStopName = stopName;
+    const box = document.getElementById('details-content');
+    box.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px;">${stopName}</div><div class="msg-box">Generowanie rozkładu z GTFS i dopasowywanie opóźnień z API...</div>`;
+
+    // 1. Główne źródło: statyczny harmonogram z stop_times.txt
+    let allDepartures = [];
+    const now = new Date();
+    const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    stopIds.forEach(id => {
+        window.appState.stopTimes.filter(st => st.stop_id === String(id)).forEach(st => {
+            const [h, m, s] = st.arrival_time.split(':').map(Number);
+            const arrSec = h * 3600 + m * 60 + (s || 0);
+            
+            // Pobieramy trier/linię z GTFS
+            let trip = window.appState.tripsMap.get(st.trip_id);
+            let routeName = trip ? window.appState.routesMap.get(trip.route_id) : 'MZK';
+            let headsign = trip ? trip.trip_headsign : 'Kierunek miejski';
+
+            // Sprawdzamy, czy dla tej linii/kursu w API jest informacja o opóźnieniu
+            let delayMinutes = 0;
+            // Opcjonalnie próbujemy dopasować żywe dane opóźnienia jeśli pojazd realizuje ten kurs
+            const matchedVehicle = window.appState.vehicles.find(v => 
+                String(v.tripId || v.trip_id) === String(st.trip_id) || 
+                String(v.lineLabel || v.line || v.routeShortName) === String(routeName)
+            );
+            if (matchedVehicle && matchedVehicle.delayInMinutes !== undefined) {
+                delayMinutes = parseInt(matchedVehicle.delayInMinutes, 10) || 0;
+            }
+
+            // Pokazujemy kursy od teraz do 3h do przodu (lub całodobowe)
+            if (arrSec >= currentSeconds - 300 && arrSec <= currentSeconds + 10800) {
+                allDepartures.push({
+                    line: routeName,
+                    headsign: headsign,
+                    time: st.arrival_time.substring(0, 5),
+                    delayInMinutes: delayMinutes,
+                    sortSec: arrSec
+                });
+            }
+        });
+    });
+
+    // Jeśli zapytanie po wybranym przedziale czasowym zwróciło mało wyników, załaduj najbliższe z całego rozkładu dla tych ID
+    if (allDepartures.length === 0 && window.appState.stopTimes.length > 0) {
+        stopIds.forEach(id => {
+            window.appState.stopTimes.filter(st => st.stop_id === String(id)).slice(0, 30).forEach(st => {
+                let trip = window.appState.tripsMap.get(st.trip_id);
+                let routeName = trip ? window.appState.routesMap.get(trip.route_id) : 'MZK';
+                let headsign = trip ? trip.trip_headsign : 'Kierunek miejski';
+                const [h, m, s] = st.arrival_time.split(':').map(Number);
+                const arrSec = h * 3600 + m * 60 + (s || 0);
+
+                allDepartures.push({
+                    line: routeName,
+                    headsign: headsign,
+                    time: st.arrival_time.substring(0, 5),
+                    delayInMinutes: 0,
+                    sortSec: arrSec
+                });
+            });
+        });
+    }
+
+    allDepartures.sort((a, b) => a.sortSec - b.sortSec);
+    window.appState.currentDeps = allDepartures;
+    renderDeparturesList();
+}
+
+function renderDeparturesList(filterLine = 'all') {
+    const box = document.getElementById('details-content');
+    const stopName = window.appState.currentStopName;
+    const deps = window.appState.currentDeps;
+
+    if (!deps.length) {
+        box.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 4px;">${stopName}</div><div class="msg-box">Brak odjazdów w plikach GTFS dla tego przystanku.</div>`;
+        return;
+    }
+
+    const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric:true}));
+    const filteredDeps = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
+
+    box.innerHTML = `
+        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 4px;">${stopName}</div>
+        <div class="filter-bar">
+            <span style="font-weight:bold; font-size:0.8rem;">Filtruj linię:</span>
+            <select id="line-filter-select" onchange="renderDeparturesList(this.value)">
+                <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie</option>
+                ${uniqueLines.map(l => `<option value="${l}" ${filterLine === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            ${filteredDeps.map(d => {
+                const timeInfo = getTimeAndCountdown(d.time);
+                const delay = d.delayInMinutes;
+
+                let delayHtml = `<div class="delay-info on-time">O czasie (GTFS)</div>`;
+                if (delay > 0) delayHtml = `<div class="delay-info late">+${delay} min opóźnienia</div>`;
+                else if (delay < 0) delayHtml = `<div class="delay-info on-time">${Math.abs(delay)} min przed czasem</div>`;
+
+                return `
+                    <div class="dep-row">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="badge">${d.line}</span>
+                            <div>
+                                <strong>${d.headsign}</strong>
+                                <div class="countdown-info">za ${timeInfo.countdown}</div>
+                            </div>
+                        </div>
+                        <div class="time-box">
+                            <div class="time-main">${timeInfo.time}</div>
+                            ${delayHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+function getTimeAndCountdown(timeStr) {
+    if (!timeStr) return { time: '---', countdown: '' };
+    const now = new Date();
+    const [h, m] = timeStr.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return { time: timeStr, countdown: '' };
+
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+
+    let diffSec = Math.floor((target - now) / 1000);
+    if (diffSec < -30) {
+        target.setDate(target.getDate() + 1);
+        diffSec = Math.floor((target - now) / 1000);
+    }
+
+    return { time: timeStr, countdown: formatSeconds(diffSec) };
+}
+
+function formatSeconds(totalSecs) {
+    if (isNaN(totalSecs)) return '';
+    if (totalSecs < 0) return 'już odjeżdża';
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    if (mins === 0) return `${secs} s`;
+    return `${mins} min ${secs} s`;
+}
+
+function renderLines() {
+    const box = document.getElementById('lines-list');
+    if (!window.appState.lines.length) {
+        box.innerHTML = '<div class="msg-box">Brak linii w plikach GTFS (routes.txt).</div>';
+        return;
+    }
+    box.innerHTML = window.appState.lines.map(l => `
+        <div class="row-item" onclick="loadLineRoute('${l.id}', '${l.name}')">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge">${l.id}</span>
+                <strong>${l.name}</strong>
+            </div>
+            <div style="font-size: 0.75rem; color: #555;">pojazdy GPS &rarr;</div>
+        </div>
+    `).join('');
+}
+
+function loadLineRoute(lineId, lineName) {
+    switchTab('details');
+    const box = document.getElementById('details-content');
+    const activeVehicles = window.appState.vehicles.filter(v => String(v.lineLabel || v.line || v.lineId || v.routeShortName) === String(lineId));
+
+    box.innerHTML = `
+        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 4px;">${lineName}</div>
+        <div style="font-size: 0.75rem; color: #555; margin-bottom: 8px;">Aktualne pozycje i opóźnienia pojazdów z API:</div>
+        <div>
+            ${activeVehicles.length ? activeVehicles.map(v => {
+                let tripId = v.tripId || v.trip_id;
+                let headsign = (tripId && window.appState.tripsMap.has(tripId) ? window.appState.tripsMap.get(tripId).trip_headsign : null) || v.headsign || 'Trasa miejska';
+                let nextStop = v.nextStopName || v.nextStop || 'Nieznany przystanek';
+                let delay = parseInt(v.delayInMinutes || 0, 10);
+                return `
+                    <div class="dep-row">
+                        <div>
+                            <strong>Pojazd #${v.id || 'N/A'}</strong>
+                            <div style="font-size: 0.75rem;">Kierunek: ${headsign}</div>
+                            <div style="font-size: 0.75rem; color: #333;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
+                        </div>
+                        <div class="time-box">
+                            ${delay > 0 ? `<div class="delay-info late">+${delay} min opóźnienia</div>` : `<div class="delay-info on-time">O czasie</div>`}
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<div class="msg-box">Brak aktywnych pojazdów na tej linii w bazie API.</div>'}
+        </div>
+    `;
+}
+
+function renderLive() {
+    const box = document.getElementById('live-list');
+    if (!window.appState.vehicles.length) {
+        box.innerHTML = '<div class="msg-box">Brak danych GPS dla pojazdów.</div>';
+        return;
+    }
+    box.innerHTML = window.appState.vehicles.map(v => {
+        const line = v.lineLabel || v.line || v.lineId || v.routeShortName || '?';
+        let tripId = v.tripId || v.trip_id;
+        let headsign = (tripId && window.appState.tripsMap.has(tripId) ? window.appState.tripsMap.get(tripId).trip_headsign : null) || v.headsign || 'Trasa miejska';
+        let nextStop = v.nextStopName || v.nextStop || 'Nieznany przystanek';
+        const delay = parseInt(v.delayInMinutes || 0, 10);
+
+        return `
+            <div class="dep-row">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge">${line}</span>
+                    <div>
+                        <strong>Kierunek: ${headsign}</strong>
+                        <div style="font-size: 0.75rem; color: #333;">Przystanek: <strong>${nextStop}</strong></div>
+                        <div style="font-size: 0.7rem; color: #555;">Pojazd #${v.id}</div>
+                    </div>
+                </div>
+                <div class="time-box">
+                    ${delay > 0 ? `<div class="delay-info late">+${delay} min</div>` : `<div class="delay-info on-time">O czasie</div>`}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
