@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – GTFS (Główne) + Live API (Opóźnienia)</title>
+    <title>MZK Gorzów Wlkp. – GTFS + Live API</title>
     <style>
         :root {
             --bg: #ffffff;
@@ -247,10 +247,10 @@ function parseCSV(text) {
 async function loadStaticGTFS() {
     try {
         const [stopsRes, routesRes, tripsRes, stopTimesRes] = await Promise.all([
-            fetch('./gtfs/stops.txt').catch(() => null),
-            fetch('./gtfs/routes.txt').catch(() => null),
-            fetch('./gtfs/trips.txt').catch(() => null),
-            fetch('./gtfs/stop_times.txt').catch(() => null)
+            fetch('./stops.txt').catch(() => null),
+            fetch('./routes.txt').catch(() => null),
+            fetch('./trips.txt').catch(() => null),
+            fetch('./stop_times.txt').catch(() => null)
         ]);
 
         if (stopsRes && stopsRes.ok) {
@@ -292,7 +292,6 @@ async function initApp() {
     document.getElementById('status-text').innerText = 'Wczytywanie statycznego GTFS (źródło główne)...';
     await loadStaticGTFS();
 
-    // Budowanie przystanków bazując w 100% na statycznym GTFS (stops.txt)
     const groupedMap = new Map();
     window.appState.stopsMap.forEach((gtfsName, gtfsId) => {
         let cleanName = gtfsName.replace(/\s*\(\d+\)\s*$/, '').trim();
@@ -305,7 +304,6 @@ async function initApp() {
 
     window.appState.stops = Array.from(groupedMap.values()).sort((a,b) => a.name.localeCompare(b.name));
 
-    // Budowanie linii bazując na routes.txt z GTFS
     const linesMap = new Map();
     window.appState.routesMap.forEach((rName, rId) => {
         linesMap.set(rName, { id: rName, name: `Linia ${rName}` });
@@ -315,7 +313,6 @@ async function initApp() {
     renderStops();
     renderLines();
 
-    // Pobieranie danych żywych (opóźnienia / pozycje pojazdów) w tle jako dodatek
     document.getElementById('status-text').innerText = 'Pobieranie opóźnień z API...';
     const vehiclesData = await fetchAPI('planner', 'v');
     window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
@@ -371,7 +368,6 @@ async function loadGroupedDepartures(stopIds, stopName) {
     const box = document.getElementById('details-content');
     box.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px;">${stopName}</div><div class="msg-box">Generowanie rozkładu z GTFS i dopasowywanie opóźnień z API...</div>`;
 
-    // 1. Główne źródło: statyczny harmonogram z stop_times.txt
     let allDepartures = [];
     const now = new Date();
     const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -381,14 +377,11 @@ async function loadGroupedDepartures(stopIds, stopName) {
             const [h, m, s] = st.arrival_time.split(':').map(Number);
             const arrSec = h * 3600 + m * 60 + (s || 0);
             
-            // Pobieramy trier/linię z GTFS
             let trip = window.appState.tripsMap.get(st.trip_id);
             let routeName = trip ? window.appState.routesMap.get(trip.route_id) : 'MZK';
             let headsign = trip ? trip.trip_headsign : 'Kierunek miejski';
 
-            // Sprawdzamy, czy dla tej linii/kursu w API jest informacja o opóźnieniu
             let delayMinutes = 0;
-            // Opcjonalnie próbujemy dopasować żywe dane opóźnienia jeśli pojazd realizuje ten kurs
             const matchedVehicle = window.appState.vehicles.find(v => 
                 String(v.tripId || v.trip_id) === String(st.trip_id) || 
                 String(v.lineLabel || v.line || v.routeShortName) === String(routeName)
@@ -397,7 +390,6 @@ async function loadGroupedDepartures(stopIds, stopName) {
                 delayMinutes = parseInt(matchedVehicle.delayInMinutes, 10) || 0;
             }
 
-            // Pokazujemy kursy od teraz do 3h do przodu (lub całodobowe)
             if (arrSec >= currentSeconds - 300 && arrSec <= currentSeconds + 10800) {
                 allDepartures.push({
                     line: routeName,
@@ -410,7 +402,6 @@ async function loadGroupedDepartures(stopIds, stopName) {
         });
     });
 
-    // Jeśli zapytanie po wybranym przedziale czasowym zwróciło mało wyników, załaduj najbliższe z całego rozkładu dla tych ID
     if (allDepartures.length === 0 && window.appState.stopTimes.length > 0) {
         stopIds.forEach(id => {
             window.appState.stopTimes.filter(st => st.stop_id === String(id)).slice(0, 30).forEach(st => {
