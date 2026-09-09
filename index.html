@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – GTFS & Live API Pro</title>
+    <title>MZK Gorzów Wlkp. – GTFS Pro</title>
     <style>
         :root {
             --bg: #ffffff;
@@ -121,14 +121,15 @@
             opacity: 0.55;
             background: #fafbfc;
         }
+        .dep-row.nearest {
+            border-left: 4px solid var(--info);
+            background: #f0f7ff;
+        }
 
         .time-box { text-align: right; }
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
         .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
-        .delay-info { font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
-        .delay-info.late { color: var(--danger); }
-        .delay-info.on-time { color: var(--success); }
-        .delay-info.scheduled { color: var(--gray-text); font-weight: 500; }
+        .delay-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
         .filter-bar {
             display: flex;
@@ -164,14 +165,13 @@
 <body>
 
 <header>
-    <div class="logo-title">MZK Gorzów Wlkp. – GTFS & Live API</div>
+    <div class="logo-title">MZK Gorzów Wlkp. – GTFS Pro</div>
     <div class="clock" id="clock">--:--:--</div>
 </header>
 
 <nav>
     <button class="nav-btn active" onclick="switchTab('stops')">Przystanki</button>
     <button class="nav-btn" onclick="switchTab('lines')">Linie</button>
-    <button class="nav-btn" onclick="switchTab('live')">GPS Na Żywo</button>
 </nav>
 
 <div class="container" style="padding-bottom: 50px;">
@@ -186,11 +186,6 @@
         <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
     </section>
 
-    <!-- POJAZDY GPS -->
-    <section id="sec-live" class="section">
-        <div id="live-list" class="msg-box">Pobieranie pozycji pojazdów z API...</div>
-    </section>
-
     <!-- SZCZEGÓŁY ODJAZDÓW / LINII -->
     <section id="sec-details" class="section">
         <button class="back-btn" onclick="goBackDetails()">&larr; Powrót</button>
@@ -200,13 +195,10 @@
 
 <div class="status-bar">
     <span id="status-text">Inicjalizacja systemu...</span>
-    <span id="api-status">GTFS Professional Engine (Auto-sync 1s)</span>
+    <span id="api-status">GTFS Engine Active</span>
 </div>
 
 <script>
-const PROXY_URL = "https://shiny-tree-3a9b.fabianzukowski-32.workers.dev/"; 
-const TOKEN = "iwa_live_tlv2api_b065655533f6d1b185f5d916ea359a8cd6cf7c545b7c54ae1B9Wj9";
-
 window.appState = {
     stopsMap: new Map(),         
     routesMap: new Map(),        
@@ -216,7 +208,6 @@ window.appState = {
     serviceIdsToday: new Set(),
     serviceIdsTomorrow: new Set(),
     activeServiceIds: new Set(), 
-    vehicles: [],                
     stops: [],                   
     lines: [],                   
     lastTab: 'stops',
@@ -396,70 +387,6 @@ function cleanStopName(name) {
     return name.replace(/\s*\(\d+\)\s*$/, '').trim();
 }
 
-function getNearestStopName(lat, lon) {
-    if (!lat || !lon || !window.appState.rawStops.length) return 'Trasa liniowa';
-    let min = Infinity;
-    let bestName = 'Na trasie';
-    for (let s of window.appState.rawStops) {
-        let d = Math.pow(s.lat - lat, 2) + Math.pow(s.lon - lon, 2);
-        if (d < min) {
-            min = d;
-            bestName = s.name;
-        }
-    }
-    return bestName;
-}
-
-function getVehicleNextStopInfo(v) {
-    const tripId = v.tripId || v.trip_id || v.trip;
-    const vLat = parseFloat(v.lat || v.latitude || v.y || v.gpsY || 0);
-    const vLon = parseFloat(v.lon || v.longitude || v.x || v.gpsX || 0);
-    const fallbackStop = getNearestStopName(vLat, vLon);
-
-    if (!tripId) return { stopName: fallbackStop, etaText: 'b/d' };
-
-    const tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
-    if (!tripStops.length) return { stopName: fallbackStop, etaText: 'b/d' };
-
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
-
-    let nextStop = tripStops.find(st => timeToSeconds(st.arrival_time || st.departure_time) >= currentSec);
-    if (!nextStop) nextStop = tripStops[tripStops.length - 1];
-
-    const stopName = window.appState.stopsMap.get(nextStop.stop_id) || fallbackStop;
-    const arrSec = timeToSeconds(nextStop.arrival_time || nextStop.departure_time);
-    const delayMin = parseInt(v.delayInMinutes !== undefined ? v.delayInMinutes : (v.delay || 0), 10);
-    const diffSec = (arrSec + (delayMin * 60)) - currentSec;
-
-    let etaText = '';
-    if (diffSec <= 0) {
-        etaText = 'już mija / na przystanku';
-    } else {
-        const mins = Math.floor(diffSec / 60);
-        const secs = diffSec % 60;
-        etaText = mins > 0 ? `za ok. ${mins} min` : `za ${secs} s`;
-    }
-
-    return { stopName: cleanStopName(stopName), etaText };
-}
-
-async function fetchAPI(command, action, params = '') {
-    const targetUrl = `https://komunikacja.um.gorzow.pl/vm/main?command=${command}&action=${action}&token=${TOKEN}${params}`;
-    try {
-        const res = await fetch(PROXY_URL + "?url=" + encodeURIComponent(targetUrl));
-        if (!res.ok) return null;
-        const text = await res.text();
-        if (!text || text.trim().startsWith('<') || text.includes('Cloudflare')) return null;
-        return JSON.parse(text);
-    } catch (e) {
-        console.error("Błąd API:", e);
-        return null;
-    }
-}
-
 async function initApp() {
     startClock();
     document.getElementById('status-text').innerText = 'Ładowanie rozkładu GTFS...';
@@ -489,19 +416,7 @@ async function initApp() {
     renderStops();
     renderLines();
 
-    document.getElementById('status-text').innerText = 'Pobieranie pozycji GPS z API...';
-    const vehiclesData = await fetchAPI('planner', 'v');
-    window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
-
-    renderLive();
-    document.getElementById('status-text').innerText = 'Gotowy – GTFS + Live API Pro';
-
-    setInterval(async () => {
-        const freshVehicles = await fetchAPI('planner', 'v');
-        if (freshVehicles) {
-            window.appState.vehicles = Array.isArray(freshVehicles) ? freshVehicles : (freshVehicles?.vehicles || freshVehicles?.data || []);
-        }
-    }, 10000);
+    document.getElementById('status-text').innerText = 'Gotowy – GTFS Pro';
 
     setInterval(() => {
         refreshCurrentView();
@@ -546,8 +461,6 @@ function refreshCurrentView() {
         loadLineDirection(cv.lineId, cv.lineName, cv.headsign, cv.dayOffset || 0, true);
     } else if (cv.type === 'tripStops') {
         loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
-    } else if (cv.type === 'live') {
-        renderLive();
     }
 }
 
@@ -608,24 +521,11 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
             const arrTimeStr = st.arrival_time || st.departure_time;
             const arrSec = timeToSeconds(arrTimeStr);
 
-            let vehicleData = window.appState.vehicles.find(v => 
-                String(v.tripId || v.trip_id || v.trip) === String(st.trip_id)
-            );
-
-            let delayMinutes = null;
-            let vehicleId = null;
-            if (vehicleData && (vehicleData.delayInMinutes !== undefined || vehicleData.delay !== undefined)) {
-                delayMinutes = parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : vehicleData.delay, 10);
-                vehicleId = vehicleData.id || vehicleData.vehicleId;
-            }
-
             if (arrSec >= currentSec - 300 && arrSec <= currentSec + 14400) {
                 departures.push({
                     line: routeName,
                     headsign: trip.trip_headsign,
                     time: arrTimeStr.substring(0, 5),
-                    delay: delayMinutes,
-                    vehicleId: vehicleId,
                     sortSec: arrSec,
                     isPast: arrSec < currentSec
                 });
@@ -663,20 +563,6 @@ function renderDeparturesList(filterLine = 'all') {
         <div>
             ${filtered.map(d => {
                 const timeInfo = d.isPast ? 'Odjechał' : getCountdown(d.time);
-                let statusHtml = '';
-                
-                if (d.delay !== null && !isNaN(d.delay)) {
-                    if (d.delay > 0) {
-                        statusHtml = `<div class="delay-info late">+${d.delay} min opóźnienia</div>`;
-                    } else if (d.delay < 0) {
-                        statusHtml = `<div class="delay-info on-time">${Math.abs(d.delay)} min przed czasem</div>`;
-                    } else {
-                        statusHtml = `<div class="delay-info on-time">Punktualnie (GPS)</div>`;
-                    }
-                } else {
-                    statusHtml = `<div class="delay-info scheduled">Rozkład planowy</div>`;
-                }
-
                 return `
                     <div class="dep-row ${d.isPast ? 'past' : ''}">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -688,7 +574,7 @@ function renderDeparturesList(filterLine = 'all') {
                         </div>
                         <div class="time-box">
                             <div class="time-main">${d.time}</div>
-                            ${statusHtml}
+                            <div class="delay-info">Rozkład planowy</div>
                         </div>
                     </div>
                 `;
@@ -714,7 +600,7 @@ function getCountdown(timeStr) {
     const secs = diffSec % 60;
 
     if (mins > 59) {
-        return timeStr; // Powyżej 59 minut pokazuje bezpośrednio godzinę, np. 14:45
+        return timeStr; // Powyżej 59 minut pokazuje bezpośrednio godzinę
     }
 
     if (mins === 0) return `za ${secs} s`;
@@ -840,10 +726,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         const timeStr = firstStop.departure_time || firstStop.arrival_time;
         const timeSec = timeToSeconds(timeStr);
 
-        let vehicleData = (dayOffset === 0) ? window.appState.vehicles.find(v => 
-            String(v.tripId || v.trip_id || v.trip) === String(trip.tripId)
-        ) : null;
-        let delayMinutes = vehicleData ? parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10) : null;
+        const isPast = dayOffset === 0 && timeSec < currentSec;
 
         allLineDepartures.push({
             tripId: trip.tripId,
@@ -851,40 +734,56 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
             sortSec: timeSec,
             headsign: trip.trip_headsign,
             startStop: cleanStopName(startStopName),
-            delay: delayMinutes,
-            isPast: dayOffset === 0 && timeSec < currentSec
+            isPast: isPast
         });
     });
 
     allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
 
+    // Znajdź pierwszy nadchodzący kurs, aby móc do niego przewinąć
+    let nearestIndex = -1;
+    if (dayOffset === 0) {
+        nearestIndex = allLineDepartures.findIndex(d => !d.isPast);
+    }
+
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="display: flex; gap: 8px; margin-bottom: 12px; margin-top: 8px;">
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wszystkie kursy w tym kierunku. Najbliższy kurs jest zaznaczony – możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
+        <div>
+            ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
+                const isNearest = (index === nearestIndex);
+                return `
+                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge">${lineId}</span>
+                            <div>
+                                <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
+                                <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
+                            </div>
+                        </div>
+                        <div class="time-box">
+                            <div class="time-main">${d.time}</div>
+                            <div class="delay-info">${dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odbyty' : 'Wg rozkładu')}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 20px; margin-bottom: 10px;">
             <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 0 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 0 ? '#fff' : 'var(--text)'};">Dzisiaj</button>
             <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 1 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 1 ? '#fff' : 'var(--text)'};">Następny dzień (Jutro)</button>
         </div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wszystkie kursy w tym kierunku na wybraną dobę. Kliknij w kurs, aby zobaczyć pełną trasę.</div>
-        <div>
-            ${allLineDepartures.length ? allLineDepartures.map(d => `
-                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span class="badge">${lineId}</span>
-                        <div>
-                            <strong style="font-size: 0.95rem;">Odjazd: ${d.time}</strong>
-                            <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
-                        </div>
-                    </div>
-                    <div class="time-box">
-                        <div class="time-main">${d.time}</div>
-                        ${d.delay !== null && !isNaN(d.delay) && d.delay !== 0 ? `
-                            <div class="delay-info ${d.delay > 0 ? 'late' : 'on-time'}">${d.delay > 0 ? `+${d.delay} min` : `${Math.abs(d.delay)} min przed`}</div>
-                        ` : `<div class="delay-info scheduled">${dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odbyty' : 'Wg rozkładu')}</div>`}
-                    </div>
-                </div>
-            `).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
-        </div>
     `;
+
+    // Automatyczne przewinięcie do najbliższego kursu po załadowaniu widoku
+    if (dayOffset === 0 && nearestIndex !== -1) {
+        setTimeout(() => {
+            const el = document.getElementById('nearest-dep');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 150);
+    }
 }
 
 function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
@@ -909,22 +808,11 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         return;
     }
 
-    let vehicleData = window.appState.vehicles.find(v => 
-        String(v.tripId || v.trip_id || v.trip) === String(tripId)
-    );
-    
-    let delayMinutes = 0;
-    if (vehicleData) {
-        delayMinutes = parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10);
-        if (isNaN(delayMinutes)) delayMinutes = 0;
-    }
-
     let stopsHtml = tripStops.map((st, index) => {
         const stopName = window.appState.stopsMap.get(st.stop_id) || `Przystanek #${st.stop_id}`;
         const timeStr = st.arrival_time || st.departure_time || '';
         const timeSec = timeToSeconds(timeStr);
-        const adjustedSec = timeSec + (delayMinutes * 60);
-        const isPast = adjustedSec < currentSec;
+        const isPast = timeSec < currentSec;
 
         return `
             <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
@@ -937,9 +825,7 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
                 </div>
                 <div class="time-box">
                     <div class="time-main">${timeStr.substring(0, 5)}</div>
-                    ${delayMinutes !== 0 && !isNaN(delayMinutes) ? `
-                        <div class="delay-info ${delayMinutes > 0 ? 'late' : 'on-time'}">${delayMinutes > 0 ? `+${delayMinutes} min (live)` : `${Math.abs(delayMinutes)} min przed`}</div>
-                    ` : `<div class="delay-info scheduled">Rozkład planowy</div>`}
+                    <div class="delay-info">Rozkład planowy</div>
                 </div>
             </div>
         `;
@@ -947,40 +833,9 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">Linia ${lineId} – Przebieg kursu</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kierunek: <strong>${headsign}</strong> ${vehicleData ? `<span style="color:var(--success); font-weight:600;">(Pojazd aktywny GPS, opóźnienie: ${delayMinutes > 0 ? '+' + delayMinutes : delayMinutes} min)</span>` : `<span style="color:var(--gray-text);">(Pojazd oczekuje w bazie / rozkład statyczny)</span>`}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kierunek: <strong>${headsign}</strong></div>
         <div>${stopsHtml}</div>
     `;
-}
-
-function renderLive() {
-    const box = document.getElementById('live-list');
-    if (!window.appState.vehicles.length) {
-        box.innerHTML = '<div class="msg-box">Brak danych GPS dla pojazdów.</div>';
-        return;
-    }
-    box.innerHTML = window.appState.vehicles.map(v => {
-        const line = v.lineLabel || v.line || v.routeShortName || v.routeName || '?';
-        const delay = parseInt(v.delayInMinutes !== undefined ? v.delayInMinutes : (v.delay || 0), 10);
-        
-        const nextInfo = getVehicleNextStopInfo(v);
-
-        return `
-            <div class="dep-row">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span class="badge">${line}</span>
-                    <div>
-                        <strong style="font-size: 0.95rem;">Linia ${line}</strong>
-                        <div style="font-size: 0.85rem; color: var(--text); margin-top: 3px;">Najbliższy przystanek: <strong>${nextInfo.stopName}</strong></div>
-                        <div style="font-size: 0.80rem; color: var(--info); font-weight: 600; margin-top: 1px;">Przewidywany przyjazd: <strong>${nextInfo.etaText}</strong></div>
-                        <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 1px;">Pojazd ID #${v.id || v.vehicleId || 'N/A'}</div>
-                    </div>
-                </div>
-                <div class="time-box">
-                    ${delay > 0 ? `<div class="delay-info late">+${delay} min</div>` : (delay < 0 ? `<div class="delay-info on-time">${Math.abs(delay)} min przed</div>` : `<div class="delay-info on-time">Punktualnie</div>`)}
-                </div>
-            </div>
-        `;
-    }).join('');
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
