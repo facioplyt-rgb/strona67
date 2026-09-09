@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -704,7 +705,7 @@ function renderLines() {
         return;
     }
     box.innerHTML = window.appState.lines.map(l => `
-        <div class="row-item" onclick="loadLineRoute('${l.id}', '${l.name}')">
+        <div class="row-item" onclick='loadLineRoute(${JSON.stringify(l.id)}, ${JSON.stringify(l.name)})'>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span class="badge">${l.id}</span>
                 <strong>${l.name}</strong>
@@ -761,7 +762,7 @@ function loadLineRoute(lineId, lineName, isRefresh = false) {
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wybierz kierunek jazdy, aby zobaczyć kursy:</div>
         <div>
             ${directions.map(d => `
-                <div class="row-item" onclick="loadLineDirection('${lineId}', '${lineName}', ${JSON.stringify(d.headsign)})">
+                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(d.headsign)})'>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge">${lineId}</span>
                         <div>
@@ -836,7 +837,7 @@ function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wszystkie dzisiejsze kursy w tym kierunku. Kliknij w kurs, aby zobaczyć pełną trasę.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map(d => `
-                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${headsign}')">
+                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge">${lineId}</span>
                         <div>
@@ -882,7 +883,6 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         String(v.tripId || v.trip_id || v.trip) === String(tripId)
     );
     
-    // Pobieramy opóźnienie z API, jeśli pojazd jest w trasie, w przeciwnym razie opóźnienie = 0 (rozkład statyczny)
     let delayMinutes = 0;
     if (vehicleData) {
         delayMinutes = parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10);
