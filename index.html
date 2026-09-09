@@ -748,7 +748,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wszystkie kursy w tym kierunku. Najbliższy kurs jest zaznaczony – możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony. Możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
                 const isNearest = (index === nearestIndex);
@@ -769,9 +769,14 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                 `;
             }).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
         </div>
-        <div style="display: flex; gap: 8px; margin-top: 20px; margin-bottom: 10px;">
-            <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 0 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 0 ? '#fff' : 'var(--text)'};">Dzisiaj</button>
-            <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 1 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 1 ? '#fff' : 'var(--text)'};">Następny dzień (Jutro)</button>
+        
+        <!-- Przycisk Następny Dzień umieszczony poniżej ostatniej linii -->
+        <div style="margin-top: 20px; margin-bottom: 15px;">
+            ${dayOffset === 0 ? `
+                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="width: 100%; text-align: center; background: var(--gray-dark); color: #fff; padding: 12px; font-size: 0.95rem;">Przejdź do rozkładu na następny dzień (Jutro) &rarr;</button>
+            ` : `
+                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="width: 100%; text-align: center; background: var(--gray-dark); color: #fff; padding: 12px; font-size: 0.95rem;">&larr; Wróć do rozkładu na dzisiaj</button>
+            `}
         </div>
     `;
 
