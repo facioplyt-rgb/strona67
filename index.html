@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -214,13 +213,17 @@ window.appState = {
     tripsMap: new Map(),         
     rawStops: [],                
     stopTimes: [],               
+    serviceIdsToday: new Set(),
+    serviceIdsTomorrow: new Set(),
     activeServiceIds: new Set(), 
     vehicles: [],                
     stops: [],                   
     lines: [],                   
     lastTab: 'stops',
     currentView: { type: 'none' },
-    backAction: null
+    backAction: null,
+    rawCalendarText: null,
+    rawCalendarDatesText: null
 };
 
 function goBackDetails() {
@@ -269,6 +272,36 @@ function parseCSV(text) {
     return data;
 }
 
+function getServiceIdsForDate(targetDate) {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = days[targetDate.getDay()];
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    let serviceIds = new Set();
+    if (window.appState.rawCalendarText) {
+        parseCSV(window.appState.rawCalendarText).forEach(c => {
+            if (dateStr >= c.start_date && dateStr <= c.end_date) {
+                if (c[dayName] === '1') serviceIds.add(c.service_id);
+            }
+        });
+    }
+    if (window.appState.rawCalendarDatesText) {
+        parseCSV(window.appState.rawCalendarDatesText).forEach(cd => {
+            if (cd.date === dateStr) {
+                if (cd.exception_type === '1') serviceIds.add(cd.service_id);
+                if (cd.exception_type === '2') serviceIds.delete(cd.service_id);
+            }
+        });
+    }
+    if (serviceIds.size === 0 && window.appState.rawCalendarText) {
+        parseCSV(window.appState.rawCalendarText).forEach(c => serviceIds.add(c.service_id));
+    }
+    return serviceIds;
+}
+
 async function loadStaticGTFS() {
     try {
         const [stopsRes, routesRes, tripsRes, stopTimesRes, calendarRes, calendarDatesRes] = await Promise.all([
@@ -303,34 +336,20 @@ async function loadStaticGTFS() {
             });
         }
 
-        const now = new Date();
-        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const todayDayName = days[now.getDay()];
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const todayDateStr = `${yyyy}${mm}${dd}`;
-
-        let serviceIds = new Set();
         if (calendarRes && calendarRes.ok) {
-            parseCSV(await calendarRes.text()).forEach(c => {
-                if (todayDateStr >= c.start_date && todayDateStr <= c.end_date) {
-                    if (c[todayDayName] === '1') serviceIds.add(c.service_id);
-                }
-            });
+            window.appState.rawCalendarText = await calendarRes.text();
         }
         if (calendarDatesRes && calendarDatesRes.ok) {
-            parseCSV(await calendarDatesRes.text()).forEach(cd => {
-                if (cd.date === todayDateStr) {
-                    if (cd.exception_type === '1') serviceIds.add(cd.service_id);
-                    if (cd.exception_type === '2') serviceIds.delete(cd.service_id);
-                }
-            });
+            window.appState.rawCalendarDatesText = await calendarDatesRes.text();
         }
-        if (serviceIds.size === 0 && calendarRes) {
-            parseCSV(await calendarRes.text()).forEach(c => serviceIds.add(c.service_id));
-        }
-        window.appState.activeServiceIds = serviceIds;
+
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+
+        window.appState.serviceIdsToday = getServiceIdsForDate(now);
+        window.appState.serviceIdsTomorrow = getServiceIdsForDate(tomorrow);
+        window.appState.activeServiceIds = window.appState.serviceIdsToday;
 
         if (stopTimesRes && stopTimesRes.ok) {
             window.appState.stopTimes = parseCSV(await stopTimesRes.text());
@@ -477,7 +496,6 @@ async function initApp() {
     renderLive();
     document.getElementById('status-text').innerText = 'Gotowy – GTFS + Live API Pro';
 
-    // Auto-refresh loops (1s UI ticker + 10s API sync)
     setInterval(async () => {
         const freshVehicles = await fetchAPI('planner', 'v');
         if (freshVehicles) {
@@ -525,7 +543,7 @@ function refreshCurrentView() {
     } else if (cv.type === 'lineRoute') {
         loadLineRoute(cv.lineId, cv.lineName, true);
     } else if (cv.type === 'lineDirection') {
-        loadLineDirection(cv.lineId, cv.lineName, cv.headsign, true);
+        loadLineDirection(cv.lineId, cv.lineName, cv.headsign, cv.dayOffset || 0, true);
     } else if (cv.type === 'tripStops') {
         loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
     } else if (cv.type === 'live') {
@@ -644,7 +662,7 @@ function renderDeparturesList(filterLine = 'all') {
         </div>
         <div>
             ${filtered.map(d => {
-                const timeInfo = d.isPast ? 'odjechał' : getCountdown(d.time);
+                const timeInfo = d.isPast ? 'Odjechał' : getCountdown(d.time);
                 let statusHtml = '';
                 
                 if (d.delay !== null && !isNaN(d.delay)) {
@@ -665,7 +683,7 @@ function renderDeparturesList(filterLine = 'all') {
                             <span class="badge">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
-                                <div class="countdown-info">${d.isPast ? 'Odjechał' : 'za ' + timeInfo}</div>
+                                <div class="countdown-info">${timeInfo}</div>
                             </div>
                         </div>
                         <div class="time-box">
@@ -694,8 +712,13 @@ function getCountdown(timeStr) {
     if (diffSec < 0) return 'odjeżdża';
     const mins = Math.floor(diffSec / 60);
     const secs = diffSec % 60;
-    if (mins === 0) return `${secs} s`;
-    return `${mins} min ${secs} s`;
+
+    if (mins > 59) {
+        return timeStr; // Powyżej 59 minut pokazuje bezpośrednio godzinę, np. 14:45
+    }
+
+    if (mins === 0) return `za ${secs} s`;
+    return `za ${mins} min ${secs} s`;
 }
 
 function renderLines() {
@@ -762,7 +785,7 @@ function loadLineRoute(lineId, lineName, isRefresh = false) {
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wybierz kierunek jazdy, aby zobaczyć kursy:</div>
         <div>
             ${directions.map(d => `
-                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(d.headsign)})'>
+                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(d.headsign)}, 0)'>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge">${lineId}</span>
                         <div>
@@ -777,16 +800,19 @@ function loadLineRoute(lineId, lineName, isRefresh = false) {
     `;
 }
 
-function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
+function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
         window.appState.backAction = () => loadLineRoute(lineId, lineName);
-        window.appState.currentView = { type: 'lineDirection', lineId, lineName, headsign };
+        window.appState.currentView = { type: 'lineDirection', lineId, lineName, headsign, dayOffset };
     }
     const box = document.getElementById('details-content');
     if (!isRefresh) {
         box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName} &rarr; ${headsign}</div><div class="msg-box">Ładowanie rozkładu dla kierunku...</div>`;
     }
+
+    const activeServices = dayOffset === 1 ? window.appState.serviceIdsTomorrow : window.appState.serviceIdsToday;
+    const dayLabel = dayOffset === 1 ? 'Następny dzień (Jutro)' : 'Dzisiaj';
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -797,7 +823,7 @@ function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
     let lineTrips = [];
     window.appState.tripsMap.forEach((trip, tripId) => {
         if (lineObj.route_ids.includes(String(trip.route_id)) && trip.trip_headsign === headsign) {
-            if (window.appState.activeServiceIds.size === 0 || window.appState.activeServiceIds.has(trip.service_id)) {
+            if (activeServices.size === 0 || activeServices.has(trip.service_id)) {
                 lineTrips.push({ tripId, ...trip });
             }
         }
@@ -814,9 +840,9 @@ function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
         const timeStr = firstStop.departure_time || firstStop.arrival_time;
         const timeSec = timeToSeconds(timeStr);
 
-        let vehicleData = window.appState.vehicles.find(v => 
+        let vehicleData = (dayOffset === 0) ? window.appState.vehicles.find(v => 
             String(v.tripId || v.trip_id || v.trip) === String(trip.tripId)
-        );
+        ) : null;
         let delayMinutes = vehicleData ? parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10) : null;
 
         allLineDepartures.push({
@@ -826,15 +852,19 @@ function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
             headsign: trip.trip_headsign,
             startStop: cleanStopName(startStopName),
             delay: delayMinutes,
-            isPast: timeSec < currentSec
+            isPast: dayOffset === 0 && timeSec < currentSec
         });
     });
 
     allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wszystkie dzisiejsze kursy w tym kierunku. Kliknij w kurs, aby zobaczyć pełną trasę.</div>
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; margin-top: 8px;">
+            <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 0 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 0 ? '#fff' : 'var(--text)'};">Dzisiaj</button>
+            <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="flex:1; margin-bottom:0; background: ${dayOffset === 1 ? 'var(--gray-dark)' : '#fff'}; color: ${dayOffset === 1 ? '#fff' : 'var(--text)'};">Następny dzień (Jutro)</button>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wszystkie kursy w tym kierunku na wybraną dobę. Kliknij w kurs, aby zobaczyć pełną trasę.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map(d => `
                 <div class="dep-row ${d.isPast ? 'past' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
@@ -849,10 +879,10 @@ function loadLineDirection(lineId, lineName, headsign, isRefresh = false) {
                         <div class="time-main">${d.time}</div>
                         ${d.delay !== null && !isNaN(d.delay) && d.delay !== 0 ? `
                             <div class="delay-info ${d.delay > 0 ? 'late' : 'on-time'}">${d.delay > 0 ? `+${d.delay} min` : `${Math.abs(d.delay)} min przed`}</div>
-                        ` : `<div class="delay-info scheduled">${d.isPast ? 'Odbyty' : 'Wg rozkładu'}</div>`}
+                        ` : `<div class="delay-info scheduled">${dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odbyty' : 'Wg rozkładu')}</div>`}
                     </div>
                 </div>
-            `).join('') : '<div class="msg-box">Brak kursów w tym kierunku na dzisiejszy dzień.</div>'}
+            `).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
         </div>
     `;
 }
