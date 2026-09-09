@@ -113,7 +113,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
         }
+        .dep-row:hover { background: var(--gray-light); }
         .dep-row.past {
             opacity: 0.55;
             background: #fafbfc;
@@ -205,15 +208,15 @@ const PROXY_URL = "https://shiny-tree-3a9b.fabianzukowski-32.workers.dev/";
 const TOKEN = "iwa_live_tlv2api_b065655533f6d1b185f5d916ea359a8cd6cf7c545b7c54ae1B9Wj9";
 
 window.appState = {
-    stopsMap: new Map(),         // stop_id -> stop_name
-    routesMap: new Map(),        // route_id -> route_short_name
-    tripsMap: new Map(),         // trip_id -> { route_id, trip_headsign, service_id }
-    rawStops: [],                // współrzędne przystanków
-    stopTimes: [],               // stop_times.txt
-    activeServiceIds: new Set(), // service_id aktywne dzisiaj
-    vehicles: [],                // pojazdy z API
-    stops: [],                   // unikalne przystanki
-    lines: [],                   // unikalne linie
+    stopsMap: new Map(),         
+    routesMap: new Map(),        
+    tripsMap: new Map(),         
+    rawStops: [],                
+    stopTimes: [],               
+    activeServiceIds: new Set(), 
+    vehicles: [],                
+    stops: [],                   
+    lines: [],                   
     lastTab: 'stops',
     currentDeps: [],
     currentStopName: ''
@@ -654,7 +657,7 @@ function renderLines() {
                 <span class="badge">${l.id}</span>
                 <strong>${l.name}</strong>
             </div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wszystkie przystanki i odjazdy &rarr;</div>
+            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wszystkie kursy &rarr;</div>
         </div>
     `).join('');
 }
@@ -667,14 +670,12 @@ function loadLineRoute(lineId, lineName) {
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
-    // Znajdź route_id dla danej linii
     const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
     if (!lineObj) {
         box.innerHTML = `<div class="msg-box">Nie znaleziono danych dla tej linii.</div>`;
         return;
     }
 
-    // Znajdź wszystkie trip_id dla tej linii
     let lineTrips = [];
     window.appState.tripsMap.forEach((trip, tripId) => {
         if (String(trip.route_id) === String(lineObj.route_id)) {
@@ -684,13 +685,11 @@ function loadLineRoute(lineId, lineName) {
         }
     });
 
-    // Zbierz wszystkie odjazdy/przystanki początkowe lub główne czasy dla tych kursów
     let allLineDepartures = [];
     lineTrips.forEach(trip => {
         const stList = window.appState.stopTimes.filter(st => String(st.trip_id) === String(trip.tripId));
         if (!stList.length) return;
         
-        // Sortuj po sekwencji przystanków, żeby wziąć pierwszy przystanek (początek kursu)
         stList.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
         const firstStop = stList[0];
         const startStopName = window.appState.stopsMap.get(firstStop.stop_id) || 'Początek trasy';
@@ -703,6 +702,7 @@ function loadLineRoute(lineId, lineName) {
         let delayMinutes = vehicleData ? parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10) : null;
 
         allLineDepartures.push({
+            tripId: trip.tripId,
             time: timeStr.substring(0, 5),
             sortSec: timeSec,
             headsign: trip.trip_headsign,
@@ -716,15 +716,15 @@ function loadLineRoute(lineId, lineName) {
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} – Wszystkie dzisiejsze kursy</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Przeszłe kursy zaznaczono na szaro, opóźnienia widoczne są na czerwono.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kliknij w konkretny kurs, aby zobaczyć pełną trasę i czasy dla każdego przystanku.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map(d => `
-                <div class="dep-row ${d.isPast ? 'past' : ''}">
+                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${d.headsign}')">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge">${lineId}</span>
                         <div>
                             <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
-                            <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start z przystanku: <strong>${d.startStop}</strong></div>
+                            <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
                         </div>
                     </div>
                     <div class="time-box">
@@ -736,6 +736,60 @@ function loadLineRoute(lineId, lineName) {
                 </div>
             `).join('') : '<div class="msg-box">Brak rozkładu jazdy dla tej linii na dzisiejszy dzień.</div>'}
         </div>
+    `;
+}
+
+function loadTripStops(tripId, lineId, headsign) {
+    switchTab('details');
+    const box = document.getElementById('details-content');
+    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
+
+    const now = new Date();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    let tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
+    tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
+
+    if (!tripStops.length) {
+        box.innerHTML = `<div class="msg-box">Brak szczegółów przystanków dla tego kursu w bazie GTFS.</div>`;
+        return;
+    }
+
+    let vehicleData = window.appState.vehicles.find(v => 
+        String(v.tripId || v.trip_id || v.trip) === String(tripId)
+    );
+    let delayMinutes = vehicleData ? parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10) : 0;
+
+    let stopsHtml = tripStops.map((st, index) => {
+        const stopName = window.appState.stopsMap.get(st.stop_id) || `Przystanek #${st.stop_id}`;
+        const timeStr = st.arrival_time || st.departure_time || '';
+        const timeSec = timeToSeconds(timeStr);
+        const adjustedSec = timeSec + (delayMinutes * 60);
+        const isPast = adjustedSec < currentSec;
+
+        return `
+            <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 700; color: var(--gray-text); font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
+                    <div>
+                        <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-text);">Kolejny przystanek na trasie</div>
+                    </div>
+                </div>
+                <div class="time-box">
+                    <div class="time-main">${timeStr.substring(0, 5)}</div>
+                    ${delayMinutes !== 0 && !isNaN(delayMinutes) ? `
+                        <div class="delay-info ${delayMinutes > 0 ? 'late' : 'on-time'}">${delayMinutes > 0 ? `+${delayMinutes} min` : `${Math.abs(delayMinutes)} min przed`}</div>
+                    ` : `<div class="delay-info scheduled">Rozkład planowy</div>`}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    box.innerHTML = `
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">Linia ${lineId} – Przebieg kursu</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kierunek: <strong>${headsign}</strong> ${vehicleData ? `<span style="color:var(--success); font-weight:600;">(Pojazd aktywny GPS, opóźnienie: ${delayMinutes > 0 ? '+' + delayMinutes : delayMinutes} min)</span>` : ''}</div>
+        <div>${stopsHtml}</div>
     `;
 }
 
