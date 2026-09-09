@@ -14,6 +14,7 @@
             --gray-text: #6e7781;
             --danger: #cf222e;
             --success: #1a7f37;
+            --success-bg: #dafbe1;
             --info: #0969da;
         }
 
@@ -93,7 +94,10 @@
             text-align: center;
             background: #fff;
             color: var(--gray-dark);
+            cursor: pointer;
+            transition: background 0.15s;
         }
+        .badge:hover { background: var(--gray-light); }
 
         .back-btn {
             background: var(--gray-light);
@@ -121,10 +125,27 @@
             opacity: 0.55;
             background: #fafbfc;
         }
+        .dep-row.active-trip {
+            background: var(--success-bg);
+            border-left: 4px solid var(--success);
+        }
 
         .time-box { text-align: right; }
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
         .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
+        
+        @keyframes moveArrows {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        .moving-arrows {
+            font-weight: 700;
+            color: var(--success);
+            letter-spacing: 2px;
+            animation: moveArrows 1s infinite;
+        }
+
         .delay-info { font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
         .delay-info.late { color: var(--danger); }
         .delay-info.on-time { color: var(--success); }
@@ -164,7 +185,7 @@
 <body>
 
 <header>
-    <div class="logo-title">MZK Gorzów Wlkp. – GTFS & Live API</div>
+    <div class="logo-title">MZK Gorzów Wlkp. – GTFS & Live API Pro</div>
     <div class="clock" id="clock">--:--:--</div>
 </header>
 
@@ -200,7 +221,7 @@
 
 <div class="status-bar">
     <span id="status-text">Inicjalizacja systemu...</span>
-    <span id="api-status">GTFS Professional Engine</span>
+    <span id="api-status">GTFS Professional Engine (Auto-sync 1s)</span>
 </div>
 
 <script>
@@ -219,7 +240,9 @@ window.appState = {
     lines: [],                   
     lastTab: 'stops',
     currentDeps: [],
-    currentStopName: ''
+    currentStopName: '',
+    currentViewType: null,       // 'stop', 'line', 'trip', 'live'
+    currentViewParams: null
 };
 
 function parseCSV(text) {
@@ -277,6 +300,7 @@ async function loadStaticGTFS() {
                     window.appState.stopsMap.set(r.stop_id, r.stop_name);
                     if (r.stop_lat && r.stop_lon) {
                         window.appState.rawStops.push({
+                            id: r.stop_id,
                             name: cleanStopName(r.stop_name),
                             lat: parseFloat(r.stop_lat),
                             lon: parseFloat(r.stop_lon)
@@ -368,54 +392,66 @@ function cleanStopName(name) {
     return name.replace(/\s*\(\d+\)\s*$/, '').trim();
 }
 
-function getNearestStopName(lat, lon) {
-    if (!lat || !lon || !window.appState.rawStops.length) return 'Trasa liniowa';
-    let min = Infinity;
-    let bestName = 'Na trasie';
-    for (let s of window.appState.rawStops) {
-        let d = Math.pow(s.lat - lat, 2) + Math.pow(s.lon - lon, 2);
-        if (d < min) {
-            min = d;
-            bestName = s.name;
-        }
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // promienie Ziemi w metrach
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function getNearestStopInfoForGPS(lat, lon) {
+    if (!lat || !lon || !window.appState.rawStops.length) return { name: 'Na trasie', text: 'b/d' };
+    
+    let sortedStops = window.appState.rawStops.map(s => ({
+        ...s,
+        dist: calculateDistance(lat, lon, s.lat, s.lon)
+    })).sort((a, b) => a.dist - b.dist);
+
+    if (!sortedStops.length) return { name: 'Na trasie', text: 'b/d' };
+
+    const closest = sortedStops[0];
+    
+    // Jeśli pojazd jest bardzo blisko przystanku (< 25 metrów)
+    if (closest.dist < 25) {
+        return { name: closest.name, segment: `Na przystanku: ${closest.name}`, text: '>>>>', isAtStop: true };
     }
-    return bestName;
+
+    // Znajdź drugi najbliższy w rozsądnej odległości, aby określić między którymi się znajduje
+    let secondClosest = sortedStops.find(s => s.name !== closest.name && s.dist < 1500) || sortedStops[1];
+
+    let segmentText = `W pobliżu: ${closest.name}`;
+    if (secondClosest && closest.dist < 800 && secondClosest.dist < 800) {
+        segmentText = `Między: ${closest.name} a ${secondClosest.name}`;
+    }
+
+    // Szacowanie czasu na podstawie odległości (zakładając średnią prędkość miejską ~25 km/h = ~7 m/s)
+    const speedMs = 7;
+    const sec = Math.round(closest.dist / speedMs);
+
+    let countdownStr = '';
+    if (sec <= 5) {
+        countdownStr = '>>>>';
+    } else if (sec < 60) {
+        countdownStr = `za ${sec} s`;
+    } else {
+        const mins = Math.ceil(sec / 60);
+        countdownStr = `za ${mins} min`;
+    }
+
+    return { name: closest.name, segment: segmentText, text: countdownStr, isAtStop: false };
 }
 
 function getVehicleNextStopInfo(v) {
-    const tripId = v.tripId || v.trip_id || v.trip;
     const vLat = parseFloat(v.lat || v.latitude || v.y || v.gpsY || 0);
     const vLon = parseFloat(v.lon || v.longitude || v.x || v.gpsX || 0);
-    const fallbackStop = getNearestStopName(vLat, vLon);
-
-    if (!tripId) return { stopName: fallbackStop, etaText: 'b/d' };
-
-    const tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
-    if (!tripStops.length) return { stopName: fallbackStop, etaText: 'b/d' };
-
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
-
-    let nextStop = tripStops.find(st => timeToSeconds(st.arrival_time || st.departure_time) >= currentSec);
-    if (!nextStop) nextStop = tripStops[tripStops.length - 1];
-
-    const stopName = window.appState.stopsMap.get(nextStop.stop_id) || fallbackStop;
-    const arrSec = timeToSeconds(nextStop.arrival_time || nextStop.departure_time);
-    const delayMin = parseInt(v.delayInMinutes !== undefined ? v.delayInMinutes : (v.delay || 0), 10);
-    const diffSec = (arrSec + (delayMin * 60)) - currentSec;
-
-    let etaText = '';
-    if (diffSec <= 0) {
-        etaText = 'już mija / na przystanku';
-    } else {
-        const mins = Math.floor(diffSec / 60);
-        const secs = diffSec % 60;
-        etaText = mins > 0 ? `za ok. ${mins} min` : `za ${secs} s`;
-    }
-
-    return { stopName: cleanStopName(stopName), etaText };
+    return getNearestStopInfoForGPS(vLat, vLon);
 }
 
 async function fetchAPI(command, action, params = '') {
@@ -434,6 +470,7 @@ async function fetchAPI(command, action, params = '') {
 
 async function initApp() {
     startClock();
+    startAutoRefresh();
     document.getElementById('status-text').innerText = 'Ładowanie rozkładu GTFS...';
     
     await loadStaticGTFS();
@@ -458,18 +495,52 @@ async function initApp() {
     renderStops();
     renderLines();
 
-    document.getElementById('status-text').innerText = 'Pobieranie pozycji GPS z API...';
-    const vehiclesData = await fetchAPI('planner', 'v');
-    window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
+    await updateLiveData();
+    document.getElementById('status-text').innerText = 'Gotowy – GTFS + Live API Pro (Odświeżanie co 1s)';
+}
 
-    renderLive();
-    document.getElementById('status-text').innerText = 'Gotowy – GTFS + Live API Pro';
+async function updateLiveData() {
+    const vehiclesData = await fetchAPI('planner', 'v');
+    if (vehiclesData) {
+        window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
+    }
 }
 
 function startClock() {
     setInterval(() => {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL');
     }, 1000);
+}
+
+function startAutoRefresh() {
+    // Co 1 sekundę odświeżaj widok i liczniki czasu rzeczywistego
+    setInterval(async () => {
+        // Okokło co 15 sekund pobierz świeże dane z GPS API
+        if (Math.random() < 0.06) {
+            await updateLiveData();
+        }
+        refreshCurrentView();
+    }, 1000);
+}
+
+function refreshCurrentView() {
+    const activeSec = document.querySelector('.section.active');
+    if (!activeSec) return;
+    
+    if (activeSec.id === 'sec-live') {
+        renderLive();
+    } else if (activeSec.id === 'sec-details') {
+        // Odśwież widok szczegółów w zależności od typu
+        const type = window.appState.currentViewType;
+        const p = window.appState.currentViewParams;
+        if (type === 'stop') {
+            loadDepartures(p.stopIds, p.stopName, true); // true = silent/refresh
+        } else if (type === 'line') {
+            loadLineRoute(p.lineId, p.lineName, true);
+        } else if (type === 'trip') {
+            loadTripStops(p.tripId, p.lineId, p.headsign, true);
+        }
+    }
 }
 
 function switchTab(tab) {
@@ -483,6 +554,7 @@ function switchTab(tab) {
     if (tab !== 'details') {
         const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(tab));
         if (btn) btn.classList.add('active');
+        window.appState.currentViewType = null;
     }
 }
 
@@ -513,11 +585,33 @@ function timeToSeconds(timeStr) {
     return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 }
 
-function loadDepartures(stopIds, stopName) {
-    switchTab('details');
-    window.appState.currentStopName = stopName;
-    const box = document.getElementById('details-content');
-    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${stopName}</div><div class="msg-box">Szukanie odjazdów w GTFS...</div>`;
+function formatDynamicCountdown(timeStr) {
+    const now = new Date();
+    const [h, m, s] = timeStr.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, s || 0, 0);
+
+    let diffSec = Math.floor((target - now) / 1000);
+    if (diffSec < -30) {
+        target.setDate(target.getDate() + 1);
+        diffSec = Math.floor((target - now) / 1000);
+    }
+
+    if (diffSec <= 0) return '<span class="moving-arrows">>>>></span>';
+    if (diffSec < 60) return `za ${diffSec} s`;
+    const mins = Math.ceil(diffSec / 60);
+    return `za ${mins} min`;
+}
+
+function loadDepartures(stopIds, stopName, silent = false) {
+    if (!silent) {
+        switchTab('details');
+        window.appState.currentViewType = 'stop';
+        window.appState.currentViewParams = { stopIds, stopName };
+        window.appState.currentStopName = stopName;
+        const box = document.getElementById('details-content');
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${stopName}</div><div class="msg-box">Szukanie odjazdów w GTFS...</div>`;
+    }
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -553,6 +647,7 @@ function loadDepartures(stopIds, stopName) {
                     line: routeName,
                     headsign: trip.trip_headsign,
                     time: arrTimeStr.substring(0, 5),
+                    fullTime: arrTimeStr,
                     delay: delayMinutes,
                     vehicleId: vehicleId,
                     sortSec: arrSec,
@@ -580,18 +675,22 @@ function renderDeparturesList(filterLine = 'all') {
     const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
     const filtered = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
 
+    // Zachowaj aktualnie wybrany filtr linii w selektorze jeśli istnieje
+    const existingSelect = document.getElementById('line-filter-select');
+    const currentSelectedFilter = existingSelect ? existingSelect.value : filterLine;
+
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
         <div class="filter-bar">
             <span style="font-weight:600; font-size:0.85rem;">Filtruj linię:</span>
-            <select onchange="renderDeparturesList(this.value)">
-                <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie (${deps.length})</option>
-                ${uniqueLines.map(l => `<option value="${l}" ${filterLine === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
+            <select id="line-filter-select" onchange="renderDeparturesList(this.value)">
+                <option value="all" ${currentSelectedFilter === 'all' ? 'selected' : ''}>Wszystkie linie (${deps.length})</option>
+                ${uniqueLines.map(l => `<option value="${l}" ${currentSelectedFilter === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
             </select>
         </div>
         <div>
             ${filtered.map(d => {
-                const timeInfo = d.isPast ? 'odjechał' : getCountdown(d.time);
+                const countdownHtml = d.isPast ? 'Odjechał' : formatDynamicCountdown(d.fullTime || (d.time + ':00'));
                 let statusHtml = '';
                 
                 if (d.delay !== null && !isNaN(d.delay)) {
@@ -609,10 +708,10 @@ function renderDeparturesList(filterLine = 'all') {
                 return `
                     <div class="dep-row ${d.isPast ? 'past' : ''}">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="badge">${d.line}</span>
+                            <span class="badge" onclick="event.stopPropagation(); loadLineRoute('${d.line}', 'Linia ${d.line}')" title="Kliknij, aby przejść do linii">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
-                                <div class="countdown-info">${d.isPast ? 'Odjechał' : 'za ' + timeInfo}</div>
+                                <div class="countdown-info">${d.isPast ? 'Odjechał' : countdownHtml}</div>
                             </div>
                         </div>
                         <div class="time-box">
@@ -624,25 +723,6 @@ function renderDeparturesList(filterLine = 'all') {
             }).join('')}
         </div>
     `;
-}
-
-function getCountdown(timeStr) {
-    const now = new Date();
-    const [h, m] = timeStr.split(':').map(Number);
-    const target = new Date();
-    target.setHours(h, m, 0, 0);
-
-    let diffSec = Math.floor((target - now) / 1000);
-    if (diffSec < -30) {
-        target.setDate(target.getDate() + 1);
-        diffSec = Math.floor((target - now) / 1000);
-    }
-
-    if (diffSec < 0) return 'odjeżdża';
-    const mins = Math.floor(diffSec / 60);
-    const secs = diffSec % 60;
-    if (mins === 0) return `${secs} s`;
-    return `${mins} min ${secs} s`;
 }
 
 function renderLines() {
@@ -662,19 +742,20 @@ function renderLines() {
     `).join('');
 }
 
-function loadLineRoute(lineId, lineName) {
-    switchTab('details');
-    const box = document.getElementById('details-content');
-    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName}</div><div class="msg-box">Ładowanie pełnego rozkładu linii...</div>`;
+function loadLineRoute(lineId, lineName, silent = false) {
+    if (!silent) {
+        switchTab('details');
+        window.appState.currentViewType = 'line';
+        window.appState.currentViewParams = { lineId, lineName };
+        const box = document.getElementById('details-content');
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName}</div><div class="msg-box">Ładowanie pełnego rozkładu linii...</div>`;
+    }
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
     const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
-    if (!lineObj) {
-        box.innerHTML = `<div class="msg-box">Nie znaleziono danych dla tej linii.</div>`;
-        return;
-    }
+    if (!lineObj) return;
 
     let lineTrips = [];
     window.appState.tripsMap.forEach((trip, tripId) => {
@@ -692,57 +773,82 @@ function loadLineRoute(lineId, lineName) {
         
         stList.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
         const firstStop = stList[0];
+        const lastStop = stList[stList.length - 1];
+
         const startStopName = window.appState.stopsMap.get(firstStop.stop_id) || 'Początek trasy';
         const timeStr = firstStop.departure_time || firstStop.arrival_time;
         const timeSec = timeToSeconds(timeStr);
+        const endSec = timeToSeconds(lastStop.arrival_time || lastStop.departure_time);
 
         let vehicleData = window.appState.vehicles.find(v => 
             String(v.tripId || v.trip_id || v.trip) === String(trip.tripId)
         );
         let delayMinutes = vehicleData ? parseInt(vehicleData.delayInMinutes !== undefined ? vehicleData.delayInMinutes : (vehicleData.delay || 0), 10) : null;
 
+        const isCurrentlyActive = (currentSec >= timeSec && currentSec <= endSec) || (vehicleData !== undefined);
+
         allLineDepartures.push({
             tripId: trip.tripId,
             time: timeStr.substring(0, 5),
             sortSec: timeSec,
+            endSec: endSec,
             headsign: trip.trip_headsign,
             startStop: cleanStopName(startStopName),
             delay: delayMinutes,
-            isPast: timeSec < currentSec
+            isPast: timeSec < currentSec && !isCurrentlyActive,
+            isActive: isCurrentlyActive,
+            vehicleData: vehicleData
         });
     });
 
     allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
 
+    const box = document.getElementById('details-content');
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} – Wszystkie dzisiejsze kursy</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kliknij w konkretny kurs, aby zobaczyć pełną trasę i czasy dla każdego przystanku.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Aktualnie odbywane kursy zaznaczone są na <strong style="color:var(--success);">zielono</strong>. Kliknij kurs, aby zobaczyć szczegóły na przystankach.</div>
         <div>
-            ${allLineDepartures.length ? allLineDepartures.map(d => `
-                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${d.headsign}')">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span class="badge">${lineId}</span>
-                        <div>
-                            <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
-                            <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
+            ${allLineDepartures.length ? allLineDepartures.map(d => {
+                let locationDesc = '';
+                if (d.isActive && d.vehicleData) {
+                    const gpsInfo = getVehicleNextStopInfo(d.vehicleData);
+                    locationDesc = `<div style="font-size: 0.8rem; color: var(--success); font-weight: 700; margin-top: 2px;">Aktualnie: ${gpsInfo.segment}</div>`;
+                } else if (d.isActive) {
+                    locationDesc = `<div style="font-size: 0.8rem; color: var(--success); font-weight: 700; margin-top: 2px;">Kurs w trakcie realizacji</div>`;
+                } else {
+                    locationDesc = `<div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start z: <strong>${d.startStop}</strong></div>`;
+                }
+
+                return `
+                    <div class="dep-row ${d.isActive ? 'active-trip' : (d.isPast ? 'past' : '')}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${d.headsign}')">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge">${lineId}</span>
+                            <div>
+                                <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
+                                ${locationDesc}
+                            </div>
+                        </div>
+                        <div class="time-box">
+                            <div class="time-main">${d.time}</div>
+                            ${d.delay !== null && !isNaN(d.delay) && d.delay !== 0 ? `
+                                <div class="delay-info ${d.delay > 0 ? 'late' : 'on-time'}">${d.delay > 0 ? `+${d.delay} min` : `${Math.abs(d.delay)} min przed`}</div>
+                            ` : `<div class="delay-info scheduled">${d.isActive ? 'Na trasie' : (d.isPast ? 'Odbyty' : 'Wg rozkładu')}</div>`}
                         </div>
                     </div>
-                    <div class="time-box">
-                        <div class="time-main">${d.time}</div>
-                        ${d.delay !== null && !isNaN(d.delay) && d.delay !== 0 ? `
-                            <div class="delay-info ${d.delay > 0 ? 'late' : 'on-time'}">${d.delay > 0 ? `+${d.delay} min` : `${Math.abs(d.delay)} min przed`}</div>
-                        ` : `<div class="delay-info scheduled">${d.isPast ? 'Odbyty' : 'Wg rozkładu'}</div>`}
-                    </div>
-                </div>
-            `).join('') : '<div class="msg-box">Brak rozkładu jazdy dla tej linii na dzisiejszy dzień.</div>'}
+                `;
+            }).join('') : '<div class="msg-box">Brak rozkładu jazdy dla tej linii na dzisiejszy dzień.</div>'}
         </div>
     `;
 }
 
-function loadTripStops(tripId, lineId, headsign) {
-    switchTab('details');
-    const box = document.getElementById('details-content');
-    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
+function loadTripStops(tripId, lineId, headsign, silent = false) {
+    if (!silent) {
+        switchTab('details');
+        window.appState.currentViewType = 'trip';
+        window.appState.currentViewParams = { tripId, lineId, headsign };
+        const box = document.getElementById('details-content');
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
+    }
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -750,10 +856,7 @@ function loadTripStops(tripId, lineId, headsign) {
     let tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
     tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
 
-    if (!tripStops.length) {
-        box.innerHTML = `<div class="msg-box">Brak szczegółów przystanków dla tego kursu w bazie GTFS.</div>`;
-        return;
-    }
+    if (!tripStops.length) return;
 
     let vehicleData = window.appState.vehicles.find(v => 
         String(v.tripId || v.trip_id || v.trip) === String(tripId)
@@ -773,7 +876,7 @@ function loadTripStops(tripId, lineId, headsign) {
                     <span style="font-weight: 700; color: var(--gray-text); font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
                     <div>
                         <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
-                        <div style="font-size: 0.75rem; color: var(--gray-text);">Kolejny przystanek na trasie</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie kursu</div>
                     </div>
                 </div>
                 <div class="time-box">
@@ -786,6 +889,7 @@ function loadTripStops(tripId, lineId, headsign) {
         `;
     }).join('');
 
+    const box = document.getElementById('details-content');
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">Linia ${lineId} – Przebieg kursu</div>
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kierunek: <strong>${headsign}</strong> ${vehicleData ? `<span style="color:var(--success); font-weight:600;">(Pojazd aktywny GPS, opóźnienie: ${delayMinutes > 0 ? '+' + delayMinutes : delayMinutes} min)</span>` : ''}</div>
@@ -806,14 +910,14 @@ function renderLive() {
         const nextInfo = getVehicleNextStopInfo(v);
 
         return `
-            <div class="dep-row">
+            <div class="dep-row" onclick="loadLineRoute('${line}', 'Linia ${line}')">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="badge">${line}</span>
                     <div>
                         <strong style="font-size: 0.95rem;">Linia ${line}</strong>
-                        <div style="font-size: 0.85rem; color: var(--text); margin-top: 3px;">Najbliższy przystanek: <strong>${nextInfo.stopName}</strong></div>
-                        <div style="font-size: 0.8rem; color: var(--info); font-weight: 600; margin-top: 1px;">Przewidywany przyjazd: <strong>${nextInfo.etaText}</strong></div>
-                        <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 1px;">Pojazd ID #${v.id || v.vehicleId || 'N/A'}</div>
+                        <div style="font-size: 0.85rem; color: var(--success); font-weight: 600; margin-top: 3px;">📍 ${nextInfo.segment}</div>
+                        <div style="font-size: 0.8rem; color: var(--info); font-weight: 600; margin-top: 1px;">Przewidywany przyjazd: <strong>${nextInfo.text}</strong></div>
+                        <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 1px;">Pojazd ID #${v.id || v.vehicleId || 'N/A'} (Kliknij, aby przejść do linii)</div>
                     </div>
                 </div>
                 <div class="time-box">
