@@ -1,37 +1,36 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – GTFS + Live API</title>
+    <title>MZK Gorzów Wlkp. – GTFS Core + Live API</title>
     <style>
         :root {
             --bg: #ffffff;
-            --text: #000000;
-            --gray-light: #f4f4f4;
-            --gray-border: #b0b0b0;
-            --gray-dark: #333333;
-            --danger: #cc0000;
-            --success: #006600;
-            --info: #0044cc;
+            --text: #111111;
+            --gray-light: #f8f9fa;
+            --gray-border: #ced4da;
+            --gray-dark: #212529;
+            --danger: #d90429;
+            --success: #2b9348;
+            --info: #0077b6;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
-        body { background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.35; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.4; }
 
         header {
             background: var(--gray-dark);
             color: #fff;
-            padding: 10px 15px;
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #000;
         }
 
-        .logo-title { font-weight: bold; font-size: 1rem; text-transform: uppercase; }
-        .clock { font-size: 0.9rem; font-weight: bold; }
+        .logo-title { font-weight: 700; font-size: 1.05rem; letter-spacing: 0.5px; text-transform: uppercase; }
+        .clock { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
         nav {
             display: flex;
@@ -44,107 +43,113 @@
             background: none;
             border: none;
             border-right: 1px solid var(--gray-border);
-            padding: 10px 5px;
-            font-weight: bold;
-            font-size: 0.85rem;
+            padding: 12px 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
             cursor: pointer;
             text-align: center;
             color: var(--gray-dark);
+            transition: background 0.2s;
         }
         .nav-btn:last-child { border-right: none; }
-        .nav-btn.active { background: #fff; color: #000; border-bottom: 2px solid #000; }
+        .nav-btn.active { background: #fff; color: #000; border-bottom: 3px solid var(--gray-dark); }
 
-        .container { max-width: 750px; margin: 0 auto; padding: 10px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 16px; }
         .section { display: none; }
         .section.active { display: block; }
 
         input[type="text"] {
             width: 100%;
-            padding: 8px 10px;
+            padding: 10px 12px;
             border: 1px solid var(--gray-border);
-            border-radius: 0;
-            font-size: 0.9rem;
-            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
             outline: none;
+            transition: border-color 0.2s;
         }
-        input[type="text"]:focus { border-color: #000; }
+        input[type="text"]:focus { border-color: var(--gray-dark); box-shadow: 0 0 0 2px rgba(33,37,41,0.1); }
 
         .row-item {
-            padding: 8px 10px;
-            border-bottom: 1px solid #ddd;
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
+            transition: background 0.15s;
         }
         .row-item:hover { background: var(--gray-light); }
 
         .badge {
             display: inline-block;
-            border: 1px solid #000;
-            padding: 2px 5px;
-            font-weight: bold;
-            font-size: 0.75rem;
-            min-width: 30px;
+            border: 1.5px solid var(--gray-dark);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            min-width: 36px;
             text-align: center;
             background: #fff;
-            color: #000;
+            color: var(--gray-dark);
         }
 
         .back-btn {
             background: var(--gray-light);
             border: 1px solid var(--gray-border);
-            padding: 5px 10px;
+            padding: 6px 12px;
+            border-radius: 4px;
             cursor: pointer;
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            font-size: 0.85rem;
         }
-        .back-btn:hover { background: #e0e0e0; }
+        .back-btn:hover { background: #e2e6ea; }
 
         .dep-row {
-            padding: 8px 10px;
-            border-bottom: 1px solid #ddd;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .time-box { text-align: right; }
-        .time-main { font-weight: bold; font-size: 1rem; }
-        .countdown-info { font-size: 0.75rem; font-weight: bold; color: var(--info); }
-        .delay-info { font-size: 0.65rem; font-weight: bold; }
+        .time-main { font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+        .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
+        .delay-info { font-size: 0.7rem; font-weight: 700; }
         .delay-info.late { color: var(--danger); }
         .delay-info.on-time { color: var(--success); }
 
         .filter-bar {
             display: flex;
-            gap: 5px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 14px;
             align-items: center;
             flex-wrap: wrap;
         }
         .filter-bar select {
-            padding: 5px;
+            padding: 6px 10px;
             border: 1px solid var(--gray-border);
+            border-radius: 4px;
             background: #fff;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
+            outline: none;
         }
 
         .status-bar {
             position: fixed;
             bottom: 0; left: 0; right: 0;
-            background: var(--gray-light);
-            border-top: 1px solid var(--gray-border);
-            padding: 5px 10px;
-            font-size: 0.7rem;
-            color: var(--gray-dark);
+            background: var(--gray-dark);
+            color: #fff;
+            padding: 6px 16px;
+            font-size: 0.75rem;
             display: flex;
             justify-content: space-between;
             z-index: 100;
         }
         
-        .msg-box { text-align: center; padding: 20px; color: #555; }
+        .msg-box { text-align: center; padding: 30px; color: #6c757d; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -160,11 +165,11 @@
     <button class="nav-btn" onclick="switchTab('live')">GPS Na Żywo</button>
 </nav>
 
-<div class="container" style="padding-bottom: 40px;">
+<div class="container" style="padding-bottom: 50px;">
     <!-- PRZYSTANKI -->
     <section id="sec-stops" class="section active">
-        <input type="text" id="stop-search" placeholder="Wpisz nazwę przystanku..." oninput="filterStops(this.value)">
-        <div id="stops-list" class="msg-box">Ładowanie danych statycznych GTFS...</div>
+        <input type="text" id="stop-search" placeholder="Szukaj przystanku..." oninput="filterStops(this.value)">
+        <div id="stops-list" class="msg-box">Ładowanie i weryfikacja danych GTFS...</div>
     </section>
 
     <!-- LINIE -->
@@ -174,7 +179,7 @@
 
     <!-- POJAZDY GPS -->
     <section id="sec-live" class="section">
-        <div id="live-list" class="msg-box">Pobieranie pozycji pojazdów...</div>
+        <div id="live-list" class="msg-box">Pobieranie pozycji pojazdów z API...</div>
     </section>
 
     <!-- SZCZEGÓŁY ODJAZDÓW -->
@@ -185,8 +190,8 @@
 </div>
 
 <div class="status-bar">
-    <span id="status-text">Inicjalizacja...</span>
-    <span id="api-status">GTFS-First Engine</span>
+    <span id="status-text">Inicjalizacja systemu...</span>
+    <span id="api-status">GTFS Engine Professional</span>
 </div>
 
 <script>
@@ -194,15 +199,16 @@ const PROXY_URL = "https://shiny-tree-3a9b.fabianzukowski-32.workers.dev/";
 const TOKEN = "iwa_live_tlv2api_b065655533f6d1b185f5d916ea359a8cd6cf7c545b7c54ae1B9Wj9";
 
 window.appState = {
-    stopsMap: new Map(),      // stop_id -> stop_name
-    routesMap: new Map(),     // route_id -> route_short_name
-    stopTimes: [],            // stop_times.txt
-    tripsMap: new Map(),      // trip_id -> { route_id, trip_headsign }
-    vehicles: [],             // pojazdy z API
-    stops: [],                // zagregowane przystanki z GTFS
-    lines: [],                // unikalne linie z GTFS
+    stopsMap: new Map(),     // stop_id -> stop_name
+    routesMap: new Map(),    // route_id -> route_short_name
+    tripsMap: new Map(),     // trip_id -> { route_id, trip_headsign, service_id }
+    stopTimes: [],           // tablica obiektów z stop_times.txt
+    activeServiceIds: new Set(), // service_id aktywne dzisiaj
+    vehicles: [],            // pojazdy z API
+    stops: [],               // zagregowane przystanki
+    lines: [],               // unikalne linie
     lastTab: 'stops',
-    currentDeps: [],          
+    currentDeps: [],
     currentStopName: ''
 };
 
@@ -246,30 +252,88 @@ function parseCSV(text) {
 
 async function loadStaticGTFS() {
     try {
-        const [stopsRes, routesRes, tripsRes, stopTimesRes] = await Promise.all([
+        const [stopsRes, routesRes, tripsRes, stopTimesRes, calendarRes, calendarDatesRes] = await Promise.all([
             fetch('./stops.txt').catch(() => null),
             fetch('./routes.txt').catch(() => null),
             fetch('./trips.txt').catch(() => null),
-            fetch('./stop_times.txt').catch(() => null)
+            fetch('./stop_times.txt').catch(() => null),
+            fetch('./calendar.txt').catch(() => null),
+            fetch('./calendar_dates.txt').catch(() => null)
         ]);
 
         if (stopsRes && stopsRes.ok) {
-            parseCSV(await stopsRes.text()).forEach(r => window.appState.stopsMap.set(r.stop_id, r.stop_name));
+            parseCSV(await stopsRes.text()).forEach(r => {
+                if (r.stop_id && r.stop_name) window.appState.stopsMap.set(r.stop_id, r.stop_name);
+            });
         }
+
         if (routesRes && routesRes.ok) {
-            parseCSV(await routesRes.text()).forEach(r => window.appState.routesMap.set(r.route_id, r.route_short_name || r.route_long_name));
+            parseCSV(await routesRes.text()).forEach(r => {
+                if (r.route_id) {
+                    window.appState.routesMap.set(r.route_id, r.route_short_name || r.route_long_name || r.route_id);
+                }
+            });
         }
+
+        // Określenie dzisiejszego dnia tygodnia i daty (YYYYMMDD)
+        const now = new Date();
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const todayDayName = days[now.getDay()];
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const todayDateStr = `${yyyy}${mm}${dd}`;
+
+        let serviceIds = new Set();
+
+        if (calendarRes && calendarRes.ok) {
+            parseCSV(await calendarRes.text()).forEach(c => {
+                const start = c.start_date;
+                const end = c.end_date;
+                if (todayDateStr >= start && todayDateStr <= end) {
+                    if (c[todayDayName] === '1') {
+                        serviceIds.add(c.service_id);
+                    }
+                }
+            });
+        }
+
+        if (calendarDatesRes && calendarDatesRes.ok) {
+            parseCSV(await calendarDatesRes.text()).forEach(cd => {
+                if (cd.date === todayDateStr) {
+                    if (cd.exception_type === '1') serviceIds.add(cd.service_id);
+                    if (cd.exception_type === '2') serviceIds.delete(cd.service_id);
+                }
+            });
+        }
+
+        // Awaryjny fallback: jeśli kalendarz nie zwrócił usług (np. inna data w feedzie), weź wszystkie
+        if (serviceIds.size === 0 && calendarRes) {
+            parseCSV(await calendarRes.text()).forEach(c => serviceIds.add(c.service_id));
+        }
+
+        window.appState.activeServiceIds = serviceIds;
+
         if (tripsRes && tripsRes.ok) {
-            parseCSV(await tripsRes.text()).forEach(r => window.appState.tripsMap.set(r.trip_id, {
-                route_id: r.route_id,
-                trip_headsign: r.trip_headsign
-            }));
+            parseCSV(await tripsRes.text()).forEach(t => {
+                if (t.trip_id) {
+                    window.appState.tripsMap.set(t.trip_id, {
+                        route_id: t.route_id,
+                        trip_headsign: t.trip_headsign || 'Kierunek miejski',
+                        service_id: t.service_id
+                    });
+                }
+            });
         }
+
         if (stopTimesRes && stopTimesRes.ok) {
             window.appState.stopTimes = parseCSV(await stopTimesRes.text());
         }
+
+        return true;
     } catch (e) {
-        console.warn("Błąd wczytywania lokalnych plików GTFS:", e);
+        console.error("Błąd ładowania GTFS:", e);
+        return false;
     }
 }
 
@@ -289,36 +353,38 @@ async function fetchAPI(command, action, params = '') {
 
 async function initApp() {
     startClock();
-    document.getElementById('status-text').innerText = 'Wczytywanie statycznego GTFS (źródło główne)...';
+    document.getElementById('status-text').innerText = 'Wczytywanie statycznych plików GTFS...';
+    
     await loadStaticGTFS();
 
-    const groupedMap = new Map();
-    window.appState.stopsMap.forEach((gtfsName, gtfsId) => {
-        let cleanName = gtfsName.replace(/\s*\(\d+\)\s*$/, '').trim();
-        if (!groupedMap.has(cleanName)) {
-            groupedMap.set(cleanName, { name: cleanName, ids: [gtfsId] });
-        } else if (!groupedMap.get(cleanName).ids.includes(gtfsId)) {
-            groupedMap.get(cleanName).ids.push(gtfsId);
+    // Agregacja przystanków według nazwy (żeby użytkownik widział przystanek zbiorczo z platformami)
+    const groupedStops = new Map();
+    window.appState.stopsMap.forEach((stopName, stopId) => {
+        let cleanName = stopName.replace(/\s*\(\d+\)\s*$/, '').trim();
+        if (!groupedStops.has(cleanName)) {
+            groupedStops.set(cleanName, { name: cleanName, ids: [] });
         }
+        groupedStops.get(cleanName).ids.push(stopId);
     });
 
-    window.appState.stops = Array.from(groupedMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+    window.appState.stops = Array.from(groupedStops.values()).sort((a, b) => a.name.localeCompare(b.name));
 
+    // Agregacja linii
     const linesMap = new Map();
-    window.appState.routesMap.forEach((rName, rId) => {
+    window.appState.routesMap.forEach((rName) => {
         linesMap.set(rName, { id: rName, name: `Linia ${rName}` });
     });
-    window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, {numeric: true}));
+    window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
     renderStops();
     renderLines();
 
-    document.getElementById('status-text').innerText = 'Pobieranie opóźnień z API...';
+    document.getElementById('status-text').innerText = 'Pobieranie opóźnień z API w tle...';
     const vehiclesData = await fetchAPI('planner', 'v');
     window.appState.vehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || vehiclesData?.data || []);
-    
+
     renderLive();
-    document.getElementById('status-text').innerText = 'Gotowy – GTFS (Główne) + API Opóźnień aktywne';
+    document.getElementById('status-text').innerText = 'Gotowy – GTFS (Baza główna) + API Opóźnień';
 }
 
 function startClock() {
@@ -346,7 +412,7 @@ function renderStops() { filterStops(''); }
 function filterStops(query) {
     const box = document.getElementById('stops-list');
     if (!window.appState.stops.length) {
-        box.innerHTML = '<div class="msg-box">Brak danych przystanków w plikach GTFS (stops.txt).</div>';
+        box.innerHTML = '<div class="msg-box">Brak przystanków w pliku stops.txt. Sprawdź repozytorium.</div>';
         return;
     }
     const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
@@ -355,32 +421,45 @@ function filterStops(query) {
         return;
     }
     box.innerHTML = filtered.map(s => `
-        <div class="row-item" onclick='loadGroupedDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)})'>
+        <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)})'>
             <div><strong>${s.name}</strong></div>
             <div style="font-size: 0.75rem; color: #555;">rozkład GTFS &rarr;</div>
         </div>
     `).join('');
 }
 
-async function loadGroupedDepartures(stopIds, stopName) {
+function timeToSeconds(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':').map(Number);
+    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+}
+
+function loadDepartures(stopIds, stopName) {
     switchTab('details');
     window.appState.currentStopName = stopName;
     const box = document.getElementById('details-content');
-    box.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px;">${stopName}</div><div class="msg-box">Generowanie rozkładu z GTFS i dopasowywanie opóźnień z API...</div>`;
+    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${stopName}</div><div class="msg-box">Przetwarzanie rozkładu z GTFS...</div>`;
 
-    let allDepartures = [];
     const now = new Date();
-    const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    let departures = [];
 
     stopIds.forEach(id => {
-        window.appState.stopTimes.filter(st => st.stop_id === String(id)).forEach(st => {
-            const [h, m, s] = st.arrival_time.split(':').map(Number);
-            const arrSec = h * 3600 + m * 60 + (s || 0);
-            
-            let trip = window.appState.tripsMap.get(st.trip_id);
-            let routeName = trip ? window.appState.routesMap.get(trip.route_id) : 'MZK';
-            let headsign = trip ? trip.trip_headsign : 'Kierunek miejski';
+        const matchingTimes = window.appState.stopTimes.filter(st => st.stop_id === String(id));
+        matchingTimes.forEach(st => {
+            const trip = window.appState.tripsMap.get(st.trip_id);
+            if (!trip) return;
 
+            // Sprawdzamy czy kurs jest aktywny dzisiaj (jeśli mamy kalendarz)
+            if (window.appState.activeServiceIds.size > 0 && !window.appState.activeServiceIds.has(trip.service_id)) {
+                return;
+            }
+
+            const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
+            const arrTimeStr = st.arrival_time || st.departure_time;
+            const arrSec = timeToSeconds(arrTimeStr);
+
+            // Pobieramy opóźnienie z API jeśli pojazd jest zmapowany
             let delayMinutes = 0;
             const matchedVehicle = window.appState.vehicles.find(v => 
                 String(v.tripId || v.trip_id) === String(st.trip_id) || 
@@ -390,40 +469,42 @@ async function loadGroupedDepartures(stopIds, stopName) {
                 delayMinutes = parseInt(matchedVehicle.delayInMinutes, 10) || 0;
             }
 
-            if (arrSec >= currentSeconds - 300 && arrSec <= currentSeconds + 10800) {
-                allDepartures.push({
+            // Pokazujemy odjazdy od 5 minut temu do 4 godzin w przód
+            if (arrSec >= currentSec - 300 && arrSec <= currentSec + 14400) {
+                departures.push({
                     line: routeName,
-                    headsign: headsign,
-                    time: st.arrival_time.substring(0, 5),
-                    delayInMinutes: delayMinutes,
+                    headsign: trip.trip_headsign,
+                    time: arrTimeStr.substring(0, 5),
+                    delay: delayMinutes,
                     sortSec: arrSec
                 });
             }
         });
     });
 
-    if (allDepartures.length === 0 && window.appState.stopTimes.length > 0) {
+    // Jeśli w wybranym oknie czasowym nic nie ma, pokazujemy najbliższe 30 kursów dla tego przystanku
+    if (departures.length === 0 && window.appState.stopTimes.length > 0) {
         stopIds.forEach(id => {
-            window.appState.stopTimes.filter(st => st.stop_id === String(id)).slice(0, 30).forEach(st => {
-                let trip = window.appState.tripsMap.get(st.trip_id);
-                let routeName = trip ? window.appState.routesMap.get(trip.route_id) : 'MZK';
-                let headsign = trip ? trip.trip_headsign : 'Kierunek miejski';
-                const [h, m, s] = st.arrival_time.split(':').map(Number);
-                const arrSec = h * 3600 + m * 60 + (s || 0);
+            window.appState.stopTimes.filter(st => st.stop_id === String(id)).slice(0, 40).forEach(st => {
+                const trip = window.appState.tripsMap.get(st.trip_id);
+                if (!trip) return;
+                const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
+                const arrTimeStr = st.arrival_time || st.departure_time;
+                const arrSec = timeToSeconds(arrTimeStr);
 
-                allDepartures.push({
+                departures.push({
                     line: routeName,
-                    headsign: headsign,
-                    time: st.arrival_time.substring(0, 5),
-                    delayInMinutes: 0,
+                    headsign: trip.trip_headsign,
+                    time: arrTimeStr.substring(0, 5),
+                    delay: 0,
                     sortSec: arrSec
                 });
             });
         });
     }
 
-    allDepartures.sort((a, b) => a.sortSec - b.sortSec);
-    window.appState.currentDeps = allDepartures;
+    departures.sort((a, b) => a.sortSec - b.sortSec);
+    window.appState.currentDeps = departures;
     renderDeparturesList();
 }
 
@@ -433,42 +514,40 @@ function renderDeparturesList(filterLine = 'all') {
     const deps = window.appState.currentDeps;
 
     if (!deps.length) {
-        box.innerHTML = `<div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 4px;">${stopName}</div><div class="msg-box">Brak odjazdów w plikach GTFS dla tego przystanku.</div>`;
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów dla tego przystanku w plikach GTFS.</div>`;
         return;
     }
 
-    const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric:true}));
-    const filteredDeps = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
+    const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+    const filtered = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
 
     box.innerHTML = `
-        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 4px;">${stopName}</div>
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
         <div class="filter-bar">
-            <span style="font-weight:bold; font-size:0.8rem;">Filtruj linię:</span>
-            <select id="line-filter-select" onchange="renderDeparturesList(this.value)">
+            <span style="font-weight:600; font-size:0.85rem;">Filtruj linię:</span>
+            <select onchange="renderDeparturesList(this.value)">
                 <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie</option>
                 ${uniqueLines.map(l => `<option value="${l}" ${filterLine === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
             </select>
         </div>
         <div>
-            ${filteredDeps.map(d => {
-                const timeInfo = getTimeAndCountdown(d.time);
-                const delay = d.delayInMinutes;
-
+            ${filtered.map(d => {
+                const timeInfo = getCountdown(d.time);
                 let delayHtml = `<div class="delay-info on-time">O czasie (GTFS)</div>`;
-                if (delay > 0) delayHtml = `<div class="delay-info late">+${delay} min opóźnienia</div>`;
-                else if (delay < 0) delayHtml = `<div class="delay-info on-time">${Math.abs(delay)} min przed czasem</div>`;
+                if (d.delay > 0) delayHtml = `<div class="delay-info late">+${d.delay} min opóźnienia</div>`;
+                else if (d.delay < 0) delayHtml = `<div class="delay-info on-time">${Math.abs(d.delay)} min przed czasem</div>`;
 
                 return `
                     <div class="dep-row">
-                        <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="badge">${d.line}</span>
                             <div>
                                 <strong>${d.headsign}</strong>
-                                <div class="countdown-info">za ${timeInfo.countdown}</div>
+                                <div class="countdown-info">za ${timeInfo}</div>
                             </div>
                         </div>
                         <div class="time-box">
-                            <div class="time-main">${timeInfo.time}</div>
+                            <div class="time-main">${d.time}</div>
                             ${delayHtml}
                         </div>
                     </div>
@@ -478,12 +557,9 @@ function renderDeparturesList(filterLine = 'all') {
     `;
 }
 
-function getTimeAndCountdown(timeStr) {
-    if (!timeStr) return { time: '---', countdown: '' };
+function getCountdown(timeStr) {
     const now = new Date();
     const [h, m] = timeStr.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return { time: timeStr, countdown: '' };
-
     const target = new Date();
     target.setHours(h, m, 0, 0);
 
@@ -493,14 +569,9 @@ function getTimeAndCountdown(timeStr) {
         diffSec = Math.floor((target - now) / 1000);
     }
 
-    return { time: timeStr, countdown: formatSeconds(diffSec) };
-}
-
-function formatSeconds(totalSecs) {
-    if (isNaN(totalSecs)) return '';
-    if (totalSecs < 0) return 'już odjeżdża';
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
+    if (diffSec < 0) return 'już odjeżdża';
+    const mins = Math.floor(diffSec / 60);
+    const secs = diffSec % 60;
     if (mins === 0) return `${secs} s`;
     return `${mins} min ${secs} s`;
 }
@@ -508,12 +579,12 @@ function formatSeconds(totalSecs) {
 function renderLines() {
     const box = document.getElementById('lines-list');
     if (!window.appState.lines.length) {
-        box.innerHTML = '<div class="msg-box">Brak linii w plikach GTFS (routes.txt).</div>';
+        box.innerHTML = '<div class="msg-box">Brak linii w pliku routes.txt.</div>';
         return;
     }
     box.innerHTML = window.appState.lines.map(l => `
         <div class="row-item" onclick="loadLineRoute('${l.id}', '${l.name}')">
-            <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
                 <span class="badge">${l.id}</span>
                 <strong>${l.name}</strong>
             </div>
@@ -525,11 +596,11 @@ function renderLines() {
 function loadLineRoute(lineId, lineName) {
     switchTab('details');
     const box = document.getElementById('details-content');
-    const activeVehicles = window.appState.vehicles.filter(v => String(v.lineLabel || v.line || v.lineId || v.routeShortName) === String(lineId));
+    const activeVehicles = window.appState.vehicles.filter(v => String(v.lineLabel || v.line || v.routeShortName) === String(lineId));
 
     box.innerHTML = `
-        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 4px;">${lineName}</div>
-        <div style="font-size: 0.75rem; color: #555; margin-bottom: 8px;">Aktualne pozycje i opóźnienia pojazdów z API:</div>
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName}</div>
+        <div style="font-size: 0.8rem; color: #555; margin-bottom: 10px;">Pojazdy na linii z API na żywo:</div>
         <div>
             ${activeVehicles.length ? activeVehicles.map(v => {
                 let tripId = v.tripId || v.trip_id;
@@ -540,15 +611,15 @@ function loadLineRoute(lineId, lineName) {
                     <div class="dep-row">
                         <div>
                             <strong>Pojazd #${v.id || 'N/A'}</strong>
-                            <div style="font-size: 0.75rem;">Kierunek: ${headsign}</div>
-                            <div style="font-size: 0.75rem; color: #333;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
+                            <div style="font-size: 0.8rem;">Kierunek: ${headsign}</div>
+                            <div style="font-size: 0.75rem; color: #495057;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
                         </div>
                         <div class="time-box">
                             ${delay > 0 ? `<div class="delay-info late">+${delay} min opóźnienia</div>` : `<div class="delay-info on-time">O czasie</div>`}
                         </div>
                     </div>
                 `;
-            }).join('') : '<div class="msg-box">Brak aktywnych pojazdów na tej linii w bazie API.</div>'}
+            }).join('') : '<div class="msg-box">Brak aktywnych pojazdów na tej linii w API.</div>'}
         </div>
     `;
 }
@@ -560,7 +631,7 @@ function renderLive() {
         return;
     }
     box.innerHTML = window.appState.vehicles.map(v => {
-        const line = v.lineLabel || v.line || v.lineId || v.routeShortName || '?';
+        const line = v.lineLabel || v.line || v.routeShortName || '?';
         let tripId = v.tripId || v.trip_id;
         let headsign = (tripId && window.appState.tripsMap.has(tripId) ? window.appState.tripsMap.get(tripId).trip_headsign : null) || v.headsign || 'Trasa miejska';
         let nextStop = v.nextStopName || v.nextStop || 'Nieznany przystanek';
@@ -568,12 +639,12 @@ function renderLive() {
 
         return `
             <div class="dep-row">
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="badge">${line}</span>
                     <div>
                         <strong>Kierunek: ${headsign}</strong>
-                        <div style="font-size: 0.75rem; color: #333;">Przystanek: <strong>${nextStop}</strong></div>
-                        <div style="font-size: 0.7rem; color: #555;">Pojazd #${v.id}</div>
+                        <div style="font-size: 0.75rem; color: #495057;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
+                        <div style="font-size: 0.7rem; color: #6c757d;">Pojazd #${v.id}</div>
                     </div>
                 </div>
                 <div class="time-box">
