@@ -193,7 +193,7 @@
 
     <!-- SZCZEGÓŁY ODJAZDÓW / LINII -->
     <section id="sec-details" class="section">
-        <button class="back-btn" onclick="switchTab(window.appState.lastTab || 'stops')">&larr; Powrót</button>
+        <button class="back-btn" onclick="goBackDetails()">&larr; Powrót</button>
         <div id="details-content"></div>
     </section>
 </div>
@@ -219,8 +219,17 @@ window.appState = {
     lines: [],                   
     lastTab: 'stops',
     currentDeps: [],
-    currentStopName: ''
+    currentStopName: '',
+    backAction: null
 };
+
+function goBackDetails() {
+    if (typeof window.appState.backAction === 'function') {
+        window.appState.backAction();
+    } else {
+        switchTab(window.appState.lastTab || 'stops');
+    }
+}
 
 function parseCSV(text) {
     const lines = text.replace(/\r/g, '').split('\n');
@@ -518,6 +527,7 @@ function timeToSeconds(timeStr) {
 
 function loadDepartures(stopIds, stopName) {
     switchTab('details');
+    window.appState.backAction = () => switchTab('stops');
     window.appState.currentStopName = stopName;
     const box = document.getElementById('details-content');
     box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${stopName}</div><div class="msg-box">Szukanie odjazdów w GTFS...</div>`;
@@ -660,19 +670,17 @@ function renderLines() {
                 <span class="badge">${l.id}</span>
                 <strong>${l.name}</strong>
             </div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wszystkie kursy &rarr;</div>
+            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz kierunek &rarr;</div>
         </div>
     `).join('');
 }
 
 function loadLineRoute(lineId, lineName) {
     switchTab('details');
+    window.appState.backAction = () => switchTab('lines');
     const box = document.getElementById('details-content');
-    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName}</div><div class="msg-box">Ładowanie pełnego rozkładu linii...</div>`;
+    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName}</div><div class="msg-box">Ładowanie kierunków linii...</div>`;
 
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    
     const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
     if (!lineObj) {
         box.innerHTML = `<div class="msg-box">Nie znaleziono danych dla tej linii.</div>`;
@@ -682,6 +690,63 @@ function loadLineRoute(lineId, lineName) {
     let lineTrips = [];
     window.appState.tripsMap.forEach((trip, tripId) => {
         if (lineObj.route_ids.includes(String(trip.route_id))) {
+            if (window.appState.activeServiceIds.size === 0 || window.appState.activeServiceIds.has(trip.service_id)) {
+                lineTrips.push({ tripId, ...trip });
+            }
+        }
+    });
+
+    const directionsMap = new Map();
+    lineTrips.forEach(trip => {
+        const headsign = trip.trip_headsign || 'Kierunek nieznany';
+        if (!directionsMap.has(headsign)) {
+            directionsMap.set(headsign, { headsign, count: 0 });
+        }
+        directionsMap.get(headsign).count++;
+    });
+
+    const directions = Array.from(directionsMap.values());
+
+    if (!directions.length) {
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName}</div><div class="msg-box">Brak kursów dla tej linii na dzisiejszy dzień.</div>`;
+        return;
+    }
+
+    box.innerHTML = `
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} – Wybierz kierunek</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wybierz kierunek jazdy, aby zobaczyć kursy:</div>
+        <div>
+            ${directions.map(d => `
+                <div class="row-item" onclick="loadLineDirection('${lineId}', '${lineName}', ${JSON.stringify(d.headsign)})">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="badge">${lineId}</span>
+                        <div>
+                            <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
+                            <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Liczba kursów dzisiaj: ${d.count}</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz &rarr;</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function loadLineDirection(lineId, lineName, headsign) {
+    switchTab('details');
+    window.appState.backAction = () => loadLineRoute(lineId, lineName);
+    const box = document.getElementById('details-content');
+    box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName} &rarr; ${headsign}</div><div class="msg-box">Ładowanie rozkładu dla kierunku...</div>`;
+
+    const now = new Date();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    
+    const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
+    if (!lineObj) return;
+
+    let lineTrips = [];
+    window.appState.tripsMap.forEach((trip, tripId) => {
+        if (lineObj.route_ids.includes(String(trip.route_id)) && trip.trip_headsign === headsign) {
             if (window.appState.activeServiceIds.size === 0 || window.appState.activeServiceIds.has(trip.service_id)) {
                 lineTrips.push({ tripId, ...trip });
             }
@@ -718,15 +783,15 @@ function loadLineRoute(lineId, lineName) {
     allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} – Wszystkie dzisiejsze kursy</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kliknij w konkretny kurs, aby zobaczyć pełną trasę i czasy dla każdego przystanku.</div>
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wszystkie dzisiejsze kursy w tym kierunku. Kliknij w kurs, aby zobaczyć pełną trasę.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map(d => `
-                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${d.headsign}')">
+                <div class="dep-row ${d.isPast ? 'past' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${headsign}')">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge">${lineId}</span>
                         <div>
-                            <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
+                            <strong style="font-size: 0.95rem;">Odjazd: ${d.time}</strong>
                             <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
                         </div>
                     </div>
@@ -737,13 +802,14 @@ function loadLineRoute(lineId, lineName) {
                         ` : `<div class="delay-info scheduled">${d.isPast ? 'Odbyty' : 'Wg rozkładu'}</div>`}
                     </div>
                 </div>
-            `).join('') : '<div class="msg-box">Brak rozkładu jazdy dla tej linii na dzisiejszy dzień.</div>'}
+            `).join('') : '<div class="msg-box">Brak kursów w tym kierunku na dzisiejszy dzień.</div>'}
         </div>
     `;
 }
 
 function loadTripStops(tripId, lineId, headsign) {
     switchTab('details');
+    window.appState.backAction = () => loadLineDirection(lineId, `Linia ${lineId}`, headsign);
     const box = document.getElementById('details-content');
     box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
 
@@ -776,7 +842,7 @@ function loadTripStops(tripId, lineId, headsign) {
                     <span style="font-weight: 700; color: var(--gray-text); font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
                     <div>
                         <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
-                        <div style="font-size: 0.75rem; color: var(--gray-text);">Kolejny przystanek na trasie</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie</div>
                     </div>
                 </div>
                 <div class="time-box">
