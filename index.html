@@ -15,6 +15,8 @@
             --danger: #cf222e;
             --success: #1a7f37;
             --info: #0969da;
+            --warning-bg: #fff8c5;
+            --warning-border: #d4a72c;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -160,6 +162,17 @@
         }
         
         .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 500; }
+        .alert-box {
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-align: center;
+            color: #735c0f;
+        }
     </style>
 </head>
 <body>
@@ -505,36 +518,63 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    let departures = [];
 
-    stopIds.forEach(id => {
-        const matchingTimes = window.appState.stopTimes.filter(st => st.stop_id === String(id));
-        matchingTimes.forEach(st => {
-            const trip = window.appState.tripsMap.get(st.trip_id);
-            if (!trip) return;
+    function getDepsForServices(serviceIds, dayOffset) {
+        let list = [];
+        stopIds.forEach(id => {
+            const matchingTimes = window.appState.stopTimes.filter(st => st.stop_id === String(id));
+            matchingTimes.forEach(st => {
+                const trip = window.appState.tripsMap.get(st.trip_id);
+                if (!trip) return;
 
-            if (window.appState.activeServiceIds.size > 0 && !window.appState.activeServiceIds.has(trip.service_id)) {
-                return;
-            }
+                if (serviceIds.size > 0 && !serviceIds.has(trip.service_id)) {
+                    return;
+                }
 
-            const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
-            const arrTimeStr = st.arrival_time || st.departure_time;
-            const arrSec = timeToSeconds(arrTimeStr);
+                const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
+                const arrTimeStr = st.arrival_time || st.departure_time;
+                const arrSec = timeToSeconds(arrTimeStr);
 
-            if (arrSec >= currentSec - 300 && arrSec <= currentSec + 14400) {
-                departures.push({
-                    line: routeName,
-                    headsign: trip.trip_headsign,
-                    time: arrTimeStr.substring(0, 5),
-                    sortSec: arrSec,
-                    isPast: arrSec < currentSec
-                });
-            }
+                if (dayOffset === 0) {
+                    if (arrSec >= currentSec - 3600 && arrSec <= 86399) {
+                        list.push({
+                            line: routeName,
+                            headsign: trip.trip_headsign,
+                            time: arrTimeStr.substring(0, 5),
+                            sortSec: arrSec,
+                            isPast: arrSec < currentSec,
+                            dayOffset: 0
+                        });
+                    }
+                } else {
+                    list.push({
+                        line: routeName,
+                        headsign: trip.trip_headsign,
+                        time: arrTimeStr.substring(0, 5),
+                        sortSec: arrSec,
+                        isPast: false,
+                        dayOffset: 1
+                    });
+                }
+            });
         });
-    });
+        return list;
+    }
 
-    departures.sort((a, b) => a.sortSec - b.sortSec);
-    window.appState.currentDeps = departures;
+    const depsToday = getDepsForServices(window.appState.serviceIdsToday, 0);
+    depsToday.sort((a, b) => a.sortSec - b.sortSec);
+
+    const hasUpcomingToday = depsToday.some(d => !d.isPast);
+
+    let allDeps = [...depsToday];
+    if (!hasUpcomingToday) {
+        const depsTomorrow = getDepsForServices(window.appState.serviceIdsTomorrow, 1);
+        depsTomorrow.sort((a, b) => a.sortSec - b.sortSec);
+        allDeps = allDeps.concat(depsTomorrow);
+    }
+
+    window.appState.currentDeps = allDeps;
+    window.appState.isRefreshLoad = isRefresh;
     renderDeparturesList();
 }
 
@@ -542,6 +582,7 @@ function renderDeparturesList(filterLine = 'all') {
     const box = document.getElementById('details-content');
     const stopName = window.appState.currentStopName;
     const deps = window.appState.currentDeps;
+    const isRefresh = window.appState.isRefreshLoad || false;
 
     if (!deps.length) {
         box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów dla tego przystanku.</div>`;
@@ -551,20 +592,33 @@ function renderDeparturesList(filterLine = 'all') {
     const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
     const filtered = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
 
+    const todayFiltered = filtered.filter(d => d.dayOffset === 0);
+    const tomorrowFiltered = filtered.filter(d => d.dayOffset === 1);
+    const hasUpcomingTodayFiltered = todayFiltered.some(d => !d.isPast);
+
+    let nearestIndex = filtered.findIndex(d => !d.isPast);
+
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
         <div class="filter-bar">
             <span style="font-weight:600; font-size:0.85rem;">Filtruj linię:</span>
             <select onchange="renderDeparturesList(this.value)">
-                <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie (${deps.length})</option>
+                <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie (${deps.filter(d=>d.dayOffset===0).length})</option>
                 ${uniqueLines.map(l => `<option value="${l}" ${filterLine === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
             </select>
         </div>
         <div>
-            ${filtered.map(d => {
+            ${!hasUpcomingTodayFiltered && todayFiltered.length > 0 ? `
+                <div class="alert-box">
+                    Brak kursów w dniu dzisiejszym
+                </div>
+            ` : ''}
+
+            ${todayFiltered.map(d => {
+                const isNearest = (filtered.indexOf(d) === nearestIndex);
                 const timeInfo = d.isPast ? 'Odjechał' : getCountdown(d.time);
                 return `
-                    <div class="dep-row ${d.isPast ? 'past' : ''}">
+                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="badge">${d.line}</span>
                             <div>
@@ -579,8 +633,44 @@ function renderDeparturesList(filterLine = 'all') {
                     </div>
                 `;
             }).join('')}
+
+            ${tomorrowFiltered.length > 0 ? `
+                <div style="text-align: center; margin: 16px 0 10px 0;">
+                    <span class="badge" style="background: var(--gray-dark); color: #fff; font-size: 0.8rem; padding: 4px 12px; border-radius: 12px;">Jutro</span>
+                </div>
+                ${tomorrowFiltered.map(d => {
+                    const isNearest = (filtered.indexOf(d) === nearestIndex);
+                    return `
+                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="badge">${d.line}</span>
+                                <div>
+                                    <strong style="font-size: 0.95rem;">${d.headsign}</strong>
+                                    <div class="countdown-info">Planowy (Jutro)</div>
+                                </div>
+                            </div>
+                            <div class="time-box">
+                                <div class="time-main">${d.time}</div>
+                                <div class="delay-info">Rozkład planowy</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            ` : ''}
         </div>
     `;
+
+    // Reset refresh flag after initial rendering so updates flow smoothly without repeated forced scrolls
+    window.appState.isRefreshLoad = false;
+
+    if (nearestIndex !== -1 && !isRefresh) {
+        setTimeout(() => {
+            const el = document.getElementById('nearest-dep');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 150);
+    }
 }
 
 function getCountdown(timeStr) {
@@ -600,7 +690,7 @@ function getCountdown(timeStr) {
     const secs = diffSec % 60;
 
     if (mins > 59) {
-        return timeStr; // Powyżej 59 minut pokazuje bezpośrednio godzinę
+        return timeStr;
     }
 
     if (mins === 0) return `za ${secs} s`;
@@ -740,7 +830,6 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
 
     allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
 
-    // Znajdź pierwszy nadchodzący kurs, aby móc do niego przewinąć
     let nearestIndex = -1;
     if (dayOffset === 0) {
         nearestIndex = allLineDepartures.findIndex(d => !d.isPast);
@@ -770,7 +859,6 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
             }).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
         </div>
         
-        <!-- Przycisk Następny Dzień umieszczony poniżej ostatniej linii -->
         <div style="margin-top: 20px; margin-bottom: 15px;">
             ${dayOffset === 0 ? `
                 <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="width: 100%; text-align: center; background: var(--gray-dark); color: #fff; padding: 12px; font-size: 0.95rem;">Przejdź do rozkładu na następny dzień (Jutro) &rarr;</button>
@@ -780,8 +868,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         </div>
     `;
 
-    // Automatyczne przewinięcie do najbliższego kursu po załadowaniu widoku
-    if (dayOffset === 0 && nearestIndex !== -1) {
+    if (dayOffset === 0 && nearestIndex !== -1 && !isRefresh) {
         setTimeout(() => {
             const el = document.getElementById('nearest-dep');
             if (el) {
