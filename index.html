@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -204,6 +203,7 @@ window.appState = {
     stopsMap: new Map(),         // stop_id -> stop_name
     routesMap: new Map(),        // route_id -> route_short_name
     tripsMap: new Map(),         // trip_id -> { route_id, trip_headsign, service_id }
+    rawStops: [],                // współrzędne przystanków do geolokalizacji GPS
     stopTimes: [],               // tablica obiektów z stop_times.txt
     activeServiceIds: new Set(), // service_id aktywne dzisiaj
     vehicles: [],                // pojazdy z API na żywo
@@ -265,7 +265,16 @@ async function loadStaticGTFS() {
 
         if (stopsRes && stopsRes.ok) {
             parseCSV(await stopsRes.text()).forEach(r => {
-                if (r.stop_id && r.stop_name) window.appState.stopsMap.set(r.stop_id, r.stop_name);
+                if (r.stop_id && r.stop_name) {
+                    window.appState.stopsMap.set(r.stop_id, r.stop_name);
+                    if (r.stop_lat && r.stop_lon) {
+                        window.appState.rawStops.push({
+                            name: cleanStopName(r.stop_name),
+                            lat: parseFloat(r.stop_lat),
+                            lon: parseFloat(r.stop_lon)
+                        });
+                    }
+                }
             });
         }
 
@@ -328,7 +337,7 @@ async function loadStaticGTFS() {
                     let headsign = t.trip_headsign;
                     if (!headsign || headsign.trim() === '') {
                         const lastStopId = tripLastStopMap.get(t.trip_id);
-                        headsign = lastStopId ? window.appState.stopsMap.get(lastStopId) : 'Kierunek końcowy';
+                        headsign = lastStopId ? window.appState.stopsMap.get(lastStopId) : 'Linia miejska';
                     }
                     window.appState.tripsMap.set(t.trip_id, {
                         route_id: t.route_id,
@@ -349,6 +358,20 @@ async function loadStaticGTFS() {
 function cleanStopName(name) {
     if (!name) return '';
     return name.replace(/\s*\(\d+\)\s*$/, '').trim();
+}
+
+function getNearestStopName(lat, lon) {
+    if (!lat || !lon || !window.appState.rawStops.length) return 'Trasa liniowa';
+    let min = Infinity;
+    let bestName = 'Na trasie';
+    for (let s of window.appState.rawStops) {
+        let d = Math.pow(s.lat - lat, 2) + Math.pow(s.lon - lon, 2);
+        if (d < min) {
+            min = d;
+            bestName = s.name;
+        }
+    }
+    return bestName;
 }
 
 async function fetchAPI(command, action, params = '') {
@@ -630,19 +653,20 @@ function loadLineRoute(lineId, lineName) {
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName}</div>
-        <div style="font-size: 0.85rem; color: #57606a; margin-bottom: 10px;">Aktywne pojazdy na trasie (dane z API na żywo):</div>
+        <div style="font-size: 0.85rem; color: #57606a; margin-bottom: 10px;">Aktywne pojazdy na trasie (lokalizacja GPS):</div>
         <div>
             ${activeVehicles.length ? activeVehicles.map(v => {
-                let tripId = v.tripId || v.trip_id || v.trip;
-                let headsign = v.headsign || v.direction || v.destination || v.routeDestination || (tripId && window.appState.tripsMap.has(tripId) ? window.appState.tripsMap.get(tripId).trip_headsign : null) || 'Kierunek końcowy';
-                let nextStop = v.nextStopName || v.nextStop || v.stopName || v.currentStop || v.lastStop || 'Brak danych o przystanku';
+                let vLat = parseFloat(v.lat || v.latitude || v.y || v.gpsY || 0);
+                let vLon = parseFloat(v.lon || v.longitude || v.x || v.gpsX || 0);
+                let currentStop = getNearestStopName(vLat, vLon);
                 let delay = parseInt(v.delayInMinutes !== undefined ? v.delayInMinutes : (v.delay || 0), 10);
+                
                 return `
                     <div class="dep-row">
                         <div>
                             <strong>Pojazd ID #${v.id || v.vehicleId || 'N/A'}</strong>
-                            <div style="font-size: 0.85rem; margin-top: 2px;">Kierunek: <strong>${headsign}</strong></div>
-                            <div style="font-size: 0.8rem; color: #57606a; margin-top: 2px;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
+                            <div style="font-size: 0.85rem; margin-top: 2px;">Linia: <strong>${lineId}</strong></div>
+                            <div style="font-size: 0.8rem; color: #57606a; margin-top: 2px;">Najbliższy przystanek (GPS): <strong>${currentStop}</strong></div>
                         </div>
                         <div class="time-box">
                             ${delay > 0 ? `<div class="delay-info late">+${delay} min opóźnienia</div>` : (delay < 0 ? `<div class="delay-info on-time">${Math.abs(delay)} min przed czasem</div>` : `<div class="delay-info on-time">Punktualnie</div>`)}
@@ -662,14 +686,12 @@ function renderLive() {
     }
     box.innerHTML = window.appState.vehicles.map(v => {
         const line = v.lineLabel || v.line || v.routeShortName || v.routeName || '?';
-        let tripId = v.tripId || v.trip_id || v.trip;
         
-        // Rozszerzone pobieranie kierunku z API na żywo lub fallback do bazy GTFS trips.txt
-        let headsign = v.headsign || v.direction || v.destination || v.routeDestination || (tripId && window.appState.tripsMap.has(tripId) ? window.appState.tripsMap.get(tripId).trip_headsign : null) || 'Kierunek miejski';
+        let vLat = parseFloat(v.lat || v.latitude || v.y || v.gpsY || 0);
+        let vLon = parseFloat(v.lon || v.longitude || v.x || v.gpsX || 0);
         
-        // Rozszerzone pobieranie najbliższego przystanku z API na żywo
-        let nextStop = v.nextStopName || v.nextStop || v.stopName || v.currentStop || v.lastStop || 'Brak danych';
-        
+        // Wyznaczenie realnego przystanku na podstawie współrzędnych GPS pojazdu i pliku stops.txt
+        let currentStop = getNearestStopName(vLat, vLon);
         const delay = parseInt(v.delayInMinutes !== undefined ? v.delayInMinutes : (v.delay || 0), 10);
 
         return `
@@ -677,8 +699,8 @@ function renderLive() {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="badge">${line}</span>
                     <div>
-                        <strong style="font-size: 0.95rem;">Kierunek: ${headsign}</strong>
-                        <div style="font-size: 0.8rem; color: #57606a; margin-top: 2px;">Najbliższy przystanek: <strong>${nextStop}</strong></div>
+                        <strong style="font-size: 0.95rem;">Linia ${line}</strong>
+                        <div style="font-size: 0.8rem; color: #57606a; margin-top: 2px;">Najbliższy przystanek (GPS): <strong>${currentStop}</strong></div>
                         <div style="font-size: 0.75rem; color: #8c959f; margin-top: 1px;">Pojazd ID #${v.id || v.vehicleId || 'N/A'}</div>
                     </div>
                 </div>
