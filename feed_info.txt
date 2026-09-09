@@ -1,0 +1,2 @@
+feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date
+Miejski Zakład Komunikacji w Gorzowie Wielkopolskim Sp. z o.o.,http://www.mzk-gorzow.com.pl/,pl,20260903,20260930
