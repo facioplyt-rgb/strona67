@@ -120,7 +120,7 @@
         }
         .dep-row:hover { background: var(--gray-light); }
         .dep-row.past {
-            opacity: 0.55;
+            opacity: 0.65;
             background: #fafbfc;
         }
         .dep-row.nearest {
@@ -131,7 +131,8 @@
         .time-box { text-align: right; }
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
         .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
-        .delay-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
+        .delay-info { font-size: 0.75rem; font-weight: 600; color: var(--danger); margin-top: 2px; }
+        .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
         .filter-bar {
             display: flex;
@@ -504,6 +505,14 @@ function timeToSeconds(timeStr) {
     return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 }
 
+function formatDelay(sec) {
+    if (sec <= 0) return '';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m === 0) return `+${s} s`;
+    return `+${m} min ${s < 10 ? '0' : ''}${s} s`;
+}
+
 function loadDepartures(stopIds, stopName, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
@@ -536,13 +545,17 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
                 const arrSec = timeToSeconds(arrTimeStr);
 
                 if (dayOffset === 0) {
-                    if (arrSec >= currentSec - 3600 && arrSec <= 86399) {
+                    // Pozwalamy pokazywać kursy również te, które już minęły (aż do 1800s / 30 min w przeszłość), traktując je jako opóźnione
+                    if (arrSec >= currentSec - 1800 && arrSec <= 86399) {
+                        const isPast = arrSec < currentSec;
+                        const delaySec = isPast ? currentSec - arrSec : 0;
                         list.push({
                             line: routeName,
                             headsign: trip.trip_headsign,
                             time: arrTimeStr.substring(0, 5),
                             sortSec: arrSec,
-                            isPast: arrSec < currentSec,
+                            isPast: isPast,
+                            delaySec: delaySec,
                             dayOffset: 0
                         });
                     }
@@ -553,6 +566,7 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
                         time: arrTimeStr.substring(0, 5),
                         sortSec: arrSec,
                         isPast: false,
+                        delaySec: 0,
                         dayOffset: 1
                     });
                 }
@@ -592,6 +606,17 @@ function renderDeparturesList(filterLine = 'all') {
     const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
     const filtered = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
 
+    const now = new Date();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    // Aktualizujemy opóźnienie dla bieżących odjazdów w czasie rzeczywistym
+    filtered.forEach(d => {
+        if (d.dayOffset === 0 && d.sortSec < currentSec) {
+            d.isPast = true;
+            d.delaySec = currentSec - d.sortSec;
+        }
+    });
+
     const todayFiltered = filtered.filter(d => d.dayOffset === 0);
     const tomorrowFiltered = filtered.filter(d => d.dayOffset === 1);
     const hasUpcomingTodayFiltered = todayFiltered.some(d => !d.isPast);
@@ -616,19 +641,29 @@ function renderDeparturesList(filterLine = 'all') {
 
             ${todayFiltered.map(d => {
                 const isNearest = (filtered.indexOf(d) === nearestIndex);
-                const timeInfo = d.isPast ? 'Odjechał' : getCountdown(d.time);
+                let infoHtml = '';
+                if (!d.isPast) {
+                    infoHtml = `<div class="countdown-info">${getCountdown(d.time)}</div>`;
+                } else {
+                    infoHtml = `
+                        <div class="normal-info">Planowy przyjazd: ${d.time}</div>
+                        <div class="delay-info">Opóźnienie ${formatDelay(d.delaySec)}</div>
+                    `;
+                }
                 return `
                     <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="badge">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
-                                <div class="countdown-info">${timeInfo}</div>
+                                ${infoHtml}
                             </div>
                         </div>
                         <div class="time-box">
                             <div class="time-main">${d.time}</div>
-                            <div class="delay-info">Rozkład planowy</div>
+                            <div class="delay-info" style="${d.isPast ? 'color: var(--danger); font-weight:700;' : 'color: var(--gray-text); font-weight:500;'}">
+                                ${d.isPast ? `+${d.delaySec}s opóźn.` : 'Rozkład planowy'}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -651,7 +686,7 @@ function renderDeparturesList(filterLine = 'all') {
                             </div>
                             <div class="time-box">
                                 <div class="time-main">${d.time}</div>
-                                <div class="delay-info">Rozkład planowy</div>
+                                <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">Rozkład planowy</div>
                             </div>
                         </div>
                     `;
@@ -660,7 +695,6 @@ function renderDeparturesList(filterLine = 'all') {
         </div>
     `;
 
-    // Reset refresh flag after initial rendering so updates flow smoothly without repeated forced scrolls
     window.appState.isRefreshLoad = false;
 
     if (nearestIndex !== -1 && !isRefresh) {
@@ -817,6 +851,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         const timeSec = timeToSeconds(timeStr);
 
         const isPast = dayOffset === 0 && timeSec < currentSec;
+        const delaySec = (dayOffset === 0 && isPast) ? currentSec - timeSec : 0;
 
         allLineDepartures.push({
             tripId: trip.tripId,
@@ -824,7 +859,8 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
             sortSec: timeSec,
             headsign: trip.trip_headsign,
             startStop: cleanStopName(startStopName),
-            isPast: isPast
+            isPast: isPast,
+            delaySec: delaySec
         });
     });
 
@@ -848,11 +884,17 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                             <div>
                                 <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
                                 <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
+                                ${d.isPast ? `
+                                    <div style="font-size: 0.75rem; color: var(--gray-text);">Planowy przyjazd: ${d.time}</div>
+                                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--danger);">Opóźnienie ${formatDelay(d.delaySec)}</div>
+                                ` : ''}
                             </div>
                         </div>
                         <div class="time-box">
                             <div class="time-main">${d.time}</div>
-                            <div class="delay-info">${dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odbyty' : 'Wg rozkładu')}</div>
+                            <div class="delay-info" style="${d.isPast ? 'color: var(--danger); font-weight:700;' : 'color: var(--gray-text); font-weight:500;'}">
+                                ${dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? `+${d.delaySec}s opóźn.` : 'Wg rozkładu')}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -905,6 +947,7 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         const timeStr = st.arrival_time || st.departure_time || '';
         const timeSec = timeToSeconds(timeStr);
         const isPast = timeSec < currentSec;
+        const delaySec = isPast ? currentSec - timeSec : 0;
 
         return `
             <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
@@ -913,11 +956,17 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
                     <div>
                         <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
                         <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie</div>
+                        ${isPast ? `
+                            <div style="font-size: 0.75rem; color: var(--gray-text);">Planowy przyjazd: ${timeStr.substring(0, 5)}</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--danger);">Opóźnienie ${formatDelay(delaySec)}</div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="time-box">
                     <div class="time-main">${timeStr.substring(0, 5)}</div>
-                    <div class="delay-info">Rozkład planowy</div>
+                    <div class="delay-info" style="${isPast ? 'color: var(--danger); font-weight:700;' : 'color: var(--gray-text); font-weight:500;'}">
+                        ${isPast ? `+${delaySec}s opóźn.` : 'Rozkład planowy'}
+                    </div>
                 </div>
             </div>
         `;
