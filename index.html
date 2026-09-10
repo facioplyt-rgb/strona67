@@ -141,10 +141,15 @@
             border-left: 4px solid #cc0000;
             background: #fff5f5;
         }
+        .dep-row.active-vehicle {
+            border-left: 4px solid #1a7f37;
+            background: #f0fff4;
+        }
 
         .time-box { text-align: right; }
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
         .countdown-info { font-size: 0.75rem; font-weight: 600; color: #cc0000; }
+        .active-vehicle-info { font-size: 0.75rem; font-weight: 700; color: #1a7f37; }
         .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
         .status-bar {
@@ -161,30 +166,6 @@
         
         .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 500; }
         
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: bold;
-            color: #444;
-            text-transform: uppercase;
-            margin: 25px 0 12px 0;
-            position: relative;
-        }
-        .section-header::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background-color: #cc0000;
-        }
-        .section-header i { color: #cc0000; font-size: 15px; }
-
-        /* Styl wyszukiwania połączeń (Jakdojade style) */
         .search-card {
             background: #24292e;
             color: #fff;
@@ -286,17 +267,17 @@
             border-radius: 0 0 6px 6px;
             max-height: 180px;
             overflow-y: auto;
-            z-index: 1000;
+            z-index: 9999;
             color: #333;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         .autocomplete-item {
-            padding: 8px 12px;
+            padding: 12px;
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
-        .autocomplete-item:hover {
+        .autocomplete-item:hover, .autocomplete-item:active {
             background: #fff5f5;
             color: #cc0000;
         }
@@ -327,7 +308,7 @@
         <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
     </section>
 
-    <!-- WYSZUKIWARKA POŁĄCZEŃ (JAKDOJADE STYLE) -->
+    <!-- WYSZUKIWARKA POŁĄCZEŃ -->
     <section id="sec-search" class="section">
         <div class="search-card">
             <div class="search-input-group" style="margin-bottom: 0;">
@@ -629,6 +610,31 @@ function timeToSeconds(timeStr) {
     return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 }
 
+// Sprawdza czy dany trip jest obecnie w trasie i zwraca nazwę przystanku, na którym aktualnie się znajduje lub mija
+function getActiveVehiclePosition(tripId, currentSec) {
+    const tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
+    if (!tripStops.length) return null;
+    tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
+
+    const startSec = timeToSeconds(tripStops[0].departure_time || tripStops[0].arrival_time);
+    const endSec = timeToSeconds(tripStops[tripStops.length - 1].arrival_time || tripStops[tripStops.length - 1].departure_time);
+
+    if (currentSec >= startSec && currentSec <= endSec) {
+        // Znajdź aktualny lub ostatnio minięty przystanek
+        let currentStopName = cleanStopName(window.appState.stopsMap.get(tripStops[0].stop_id));
+        for (let i = 0; i < tripStops.length; i++) {
+            const arrSec = timeToSeconds(tripStops[i].arrival_time || tripStops[i].departure_time);
+            if (currentSec >= arrSec) {
+                currentStopName = cleanStopName(window.appState.stopsMap.get(tripStops[i].stop_id));
+            } else {
+                break;
+            }
+        }
+        return currentStopName;
+    }
+    return null;
+}
+
 function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
@@ -666,6 +672,7 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
                 if (dayOffset === 0) {
                     if (arrSec >= currentSec - 900 && arrSec <= 86399) {
                         const isPast = arrSec < currentSec;
+                        const activePos = dayOffset === 0 ? getActiveVehiclePosition(st.trip_id, currentSec) : null;
                         list.push({
                             tripId: st.trip_id,
                             stopId: st.stop_id,
@@ -674,6 +681,7 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
                             time: arrTimeStr.substring(0, 5),
                             sortSec: arrSec,
                             isPast: isPast,
+                            activePos: activePos,
                             dayOffset: 0
                         });
                     }
@@ -686,6 +694,7 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
                         time: arrTimeStr.substring(0, 5),
                         sortSec: arrSec,
                         isPast: false,
+                        activePos: null,
                         dayOffset: 1
                     });
                 }
@@ -787,6 +796,7 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
     filtered.forEach(d => {
         if (d.dayOffset === 0) {
             d.isPast = d.sortSec < currentSec;
+            d.activePos = getActiveVehiclePosition(d.tripId, currentSec);
         }
     });
 
@@ -813,24 +823,34 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                 let statusLabel = 'Wg rozkładu';
                 let statusColor = 'color: var(--gray-text); font-weight:500;';
                 let badgeClass = 'badge blue';
+                let rowClass = d.isPast ? 'dep-row past' : 'dep-row';
 
-                if (!d.isPast) {
+                if (d.activePos) {
+                    rowClass = 'dep-row active-vehicle';
+                    infoHtml = `<div class="active-vehicle-info"><i class="fa-solid fa-location-dot"></i> Pojazd w trasie (mija: ${d.activePos})</div>`;
+                    statusLabel = 'W trasie';
+                    statusColor = 'color: #1a7f37; font-weight:700;';
+                } else if (!d.isPast) {
                     infoHtml = `<div class="countdown-info">${getCountdown(d.time)}</div>`;
                 } else {
                     infoHtml = `<div class="normal-info">Odjechał planowo</div>`;
                     statusLabel = 'Odjechał';
                 }
 
+                if (isNearest && !d.activePos) {
+                    rowClass += ' nearest';
+                }
+
                 return `
-                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}">
-                        <div style="display: flex; align-items: center; gap: 10px;">
+                    <div id="${isNearest || d.activePos ? 'nearest-dep' : ''}" class="${rowClass}">
+                        <div style="display: flex; align-items: center; gap: 10px;" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
                             <span class="${badgeClass}">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
                                 ${infoHtml}
                             </div>
                         </div>
-                        <div class="time-box">
+                        <div class="time-box" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
                             <div class="time-main">${d.time}</div>
                             <div class="delay-info" style="${statusColor}">
                                 ${statusLabel}
@@ -848,7 +868,7 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                     const isNearest = (filtered.indexOf(d) === nearestIndex);
                     const badgeClass = 'badge blue';
                     return `
-                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}">
+                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span class="${badgeClass}">${d.line}</span>
                                 <div>
@@ -1018,6 +1038,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         const timeSec = timeToSeconds(timeStr);
 
         const isPast = dayOffset === 0 && timeSec < currentSec;
+        const activePos = dayOffset === 0 ? getActiveVehiclePosition(trip.tripId, currentSec) : null;
 
         allLineDepartures.push({
             tripId: trip.tripId,
@@ -1026,7 +1047,8 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
             sortSec: timeSec,
             headsign: trip.trip_headsign,
             startStop: cleanStopName(startStopName),
-            isPast: isPast
+            isPast: isPast,
+            activePos: activePos
         });
     });
 
@@ -1039,21 +1061,25 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony. Możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs lub pojazd w trasie jest zaznaczony.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
                 const isNearest = (index === nearestIndex);
-                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Wg rozkładu');
-                let statusColor = 'color: var(--gray-text); font-weight:500;';
+                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.activePos ? 'W trasie' : (d.isPast ? 'Odjechał' : 'Wg rozkładu'));
+                let statusColor = d.activePos ? 'color: #1a7f37; font-weight:700;' : 'color: var(--gray-text); font-weight:500;';
                 let badgeClass = 'badge blue';
+                let rowClass = d.isPast ? 'dep-row past' : 'dep-row';
+
+                if (d.activePos) rowClass = 'dep-row active-vehicle';
+                else if (isNearest) rowClass += ' nearest';
 
                 return `
-                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
+                    <div id="${isNearest || d.activePos ? 'nearest-dep' : ''}" class="${rowClass}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="${badgeClass}">${lineId}</span>
                             <div>
-                                <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:#cc0000; font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
-                                <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
+                                <strong style="font-size: 0.95rem;">Odjazd: ${d.time}</strong>
+                                ${d.activePos ? `<div class="active-vehicle-info"><i class="fa-solid fa-location-dot"></i> Pojazd w trasie (mija: ${d.activePos})</div>` : `<div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>`}
                             </div>
                         </div>
                         <div class="time-box">
@@ -1147,7 +1173,7 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
     `;
 }
 
-// Logika autouzupełniania dla wyszukiwarki połączeń (Jakdojade style)
+// Autouzupełnienie z natychmiastowym reagowaniem na dotknięcie (mobile touch friendly)
 function handleAutocomplete(field, query) {
     const sugBox = document.getElementById(`suggestions-${field}`);
     if (!query || query.length < 2) {
@@ -1163,7 +1189,7 @@ function handleAutocomplete(field, query) {
 
     sugBox.style.display = 'block';
     sugBox.innerHTML = filtered.map(s => `
-        <div class="autocomplete-item" onclick="selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})">
+        <div class="autocomplete-item" onmousedown="selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})" ontouchstart="selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})">
             <strong>${s.name}</strong>
         </div>
     `).join('');
@@ -1191,7 +1217,6 @@ function swapStops() {
     window.appState.searchToIds = tempIds;
 }
 
-// Wyszukiwanie połączeń bezpośrednich w stylu Jakdojade
 function searchConnections() {
     const resultsBox = document.getElementById('search-results');
     const fromIds = window.appState.searchFromIds;
@@ -1207,15 +1232,13 @@ function searchConnections() {
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
-    // Szukamy kursów przechodzących przez przystanek początkowy, a potem przez docelowy w ramach tego samego trip_id
     let connections = [];
+    let fromTimesMap = new Map();
 
-    // Mapowanie czasów dla przystanków początkowych
-    let fromTimesMap = new Map(); // trip_id -> arrival/departure sec
     window.appState.stopTimes.forEach(st => {
         if (fromIds.map(String).includes(String(st.stop_id))) {
             const timeSec = timeToSeconds(st.arrival_time || st.departure_time);
-            if (timeSec >= currentSec - 600) { // od 10 min wstecz
+            if (timeSec >= currentSec - 600) {
                 fromTimesMap.set(st.trip_id, {
                     timeStr: (st.arrival_time || st.departure_time).substring(0, 5),
                     sec: timeSec,
@@ -1225,13 +1248,11 @@ function searchConnections() {
         }
     });
 
-    // Sprawdzamy przystanki docelowe na tych samych tripach
     window.appState.stopTimes.forEach(st => {
         if (toIds.map(String).includes(String(st.stop_id)) && fromTimesMap.has(st.trip_id)) {
             const fromInfo = fromTimesMap.get(st.trip_id);
             const toSeq = parseInt(st.stop_sequence || 0, 10);
             
-            // Upewniamy się, że przystanek docelowy jest po przystanku początkowym w ramach tego samego kursu
             if (toSeq > fromInfo.seq) {
                 const toSec = timeToSeconds(st.arrival_time || st.departure_time);
                 const trip = window.appState.tripsMap.get(st.trip_id);
