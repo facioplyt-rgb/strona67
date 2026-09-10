@@ -95,7 +95,7 @@
             background: #fff;
             color: var(--gray-dark);
         }
-        .badge.blue { background: var(--info); color: #fff; }
+        .badge.blue { background: var(--info); color: #fff; border-color: #03499e; }
         .badge.blue-red { background: linear-gradient(135deg, #0969da 50%, #cf222e 50%); color: #fff; border-color: var(--gray-dark); }
         .badge.red { background: var(--danger); color: #fff; border-color: var(--gray-dark); }
 
@@ -128,6 +128,7 @@
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
         .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
         .delay-info { font-size: 0.75rem; font-weight: 600; color: var(--danger); margin-top: 2px; }
+        .active-info { font-size: 0.75rem; font-weight: 600; color: var(--info); margin-top: 2px; }
         .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
         .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 500; }
@@ -173,7 +174,7 @@
 
 <script>
 const DELAY_STORAGE_KEY = 'gtfs_delays_cache_v1';
-const EXPIRATION_MS = 24 * 60 * 60 * 1000; // Auto-czyszczenie po 24h
+const EXPIRATION_MS = 24 * 60 * 60 * 1000;
 
 window.appState = {
     stopsMap: new Map(),         
@@ -199,7 +200,6 @@ window.appState = {
     currentHeadsign: null
 };
 
-// Zarządzanie pamięcią trwała opóźnień z retencją 24h
 function loadStoredDelays() {
     try {
         const raw = localStorage.getItem(DELAY_STORAGE_KEY);
@@ -543,7 +543,6 @@ function getTripDelay(tripId, stopId = null) {
 }
 
 function calculateArrivalDelay(tripId, stopId, scheduledSec, currentSec) {
-    // Odczyt opóźnienia wyłącznie z rzeczywistych zapisanych danych
     return getTripDelay(tripId, stopId);
 }
 
@@ -661,9 +660,9 @@ function renderStopDirectionsMenu(stopName, deps) {
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wybierz kierunek jazdy lub wyświetl wszystkie:</div>
         
-        <div class="row-item" style="background: var(--gray-light); border-left: 4px solid var(--info); margin-bottom: 10px;" onclick='loadDeparturesWithHeadsign("all")'>
+        <div class="row-item" style="background: #f0f7ff; border-left: 4px solid var(--info); margin-bottom: 10px;" onclick='loadDeparturesWithHeadsign("all")'>
             <div>
-                <strong style="font-size: 0.95rem;">Wszystkie kierunki (wszystkie linie)</strong>
+                <strong style="font-size: 0.95rem; color: var(--info);">Wszystkie kierunki (wszystkie linie)</strong>
                 <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Łącznie kursów: ${deps.length}</div>
             </div>
             <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Pokaż &rarr;</div>
@@ -733,35 +732,37 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
             ${todayFiltered.map(d => {
                 const isNearest = (filtered.indexOf(d) === nearestIndex);
                 let infoHtml = '';
-                let statusLabel = 'Zgodnie z rozkładem';
-                let statusColor = 'color: var(--gray-text); font-weight:500;';
+                let statusLabel = 'W trasie / Zgodnie z rozkładem';
+                let statusColor = 'color: var(--info); font-weight: 600;';
                 let badgeClass = 'badge blue';
 
-                if (d.delaySec > 0) {
-                    if (d.isPast) {
-                        badgeClass = 'badge red';
-                        statusLabel = `Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
-                        statusColor = 'color: var(--danger); font-weight:700;';
-                    } else {
-                        badgeClass = 'badge blue-red';
-                        statusLabel = `Opóźnienie ${formatDelay(d.delaySec)}`;
-                        statusColor = 'color: var(--danger); font-weight:600;';
-                    }
-                }
-
                 if (!d.isPast) {
+                    badgeClass = 'badge blue';
                     infoHtml = `<div class="countdown-info">${getCountdown(d.time, d.delaySec)}</div>`;
                     if (d.delaySec > 0) {
+                        badgeClass = 'badge blue-red';
+                        statusLabel = `W trasie (Opóźnienie ${formatDelay(d.delaySec)})`;
+                        statusColor = 'color: var(--danger); font-weight: 600;';
                         infoHtml += `<div class="delay-info">Opóźnienie: ${formatDelay(d.delaySec)}</div>`;
+                    } else {
+                        statusLabel = 'Jedzie na linii';
+                        statusColor = 'color: var(--info); font-weight: 600;';
                     }
-                } else if (d.delaySec > 0) {
-                    infoHtml = `
-                        <div class="normal-info">Planowy przyjazd: ${d.time}</div>
-                        <div class="delay-info">Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}</div>
-                    `;
                 } else {
-                    infoHtml = `<div class="normal-info">Odjechał planowo</div>`;
-                    statusLabel = 'Odjechał';
+                    if (d.delaySec > 0) {
+                        badgeClass = 'badge red';
+                        statusLabel = `Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
+                        statusColor = 'color: var(--danger); font-weight: 700;';
+                        infoHtml = `
+                            <div class="normal-info">Planowy przyjazd: ${d.time}</div>
+                            <div class="delay-info">Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}</div>
+                        `;
+                    } else {
+                        badgeClass = 'badge';
+                        statusLabel = 'Odjechał';
+                        statusColor = 'color: var(--gray-text); font-weight: 500;';
+                        infoHtml = `<div class="normal-info">Odjechał planowo</div>`;
+                    }
                 }
 
                 return `
@@ -769,12 +770,12 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="${badgeClass}">${d.line}</span>
                             <div>
-                                <strong style="font-size: 0.95rem;">${d.headsign}</strong>
+                                <strong style="font-size: 0.95rem; ${!d.isPast ? 'color: var(--info);' : ''}">${d.headsign}</strong>
                                 ${infoHtml}
                             </div>
                         </div>
                         <div class="time-box">
-                            <div class="time-main">${d.time}</div>
+                            <div class="time-main" style="${!d.isPast ? 'color: var(--info);' : ''}">${d.time}</div>
                             <div class="delay-info" style="${statusColor}">
                                 ${statusLabel}
                             </div>
@@ -800,7 +801,7 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                             </div>
                             <div class="time-box">
                                 <div class="time-main">${d.time}</div>
-                                <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">Zgodnie z rozkładem</div>
+                                <div class="delay-info" style="color: var(--info); font-weight: 500;">Planowy kurs</div>
                             </div>
                         </div>
                     `;
@@ -987,26 +988,37 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Gdy linia jedzie/jest aktywna, wyświetla się na <strong style="color:var(--info)">niebiesko</strong>.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
                 const isNearest = (index === nearestIndex);
-                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Zgodnie z rozkładem');
-                let statusColor = 'color: var(--gray-text); font-weight:500;';
+                let statusLabel = 'W trasie na linii';
+                let statusColor = 'color: var(--info); font-weight: 600;';
                 let badgeClass = 'badge blue';
 
-                if (d.delaySec > 0) {
-                    if (d.isPast) {
+                if (dayOffset === 1) {
+                    statusLabel = 'Planowy (Jutro)';
+                    statusColor = 'color: var(--info); font-weight: 500;';
+                } else if (!d.isPast) {
+                    badgeClass = 'badge blue';
+                    if (d.delaySec > 0) {
+                        badgeClass = 'badge blue-red';
+                        statusLabel = `W trasie (Opóźnienie ${formatDelay(d.delaySec)})`;
+                        statusColor = 'color: var(--danger); font-weight: 600;';
+                    } else {
+                        statusLabel = 'Jedzie na linii';
+                        statusColor = 'color: var(--info); font-weight: 600;';
+                    }
+                } else {
+                    if (d.delaySec > 0) {
                         badgeClass = 'badge red';
                         statusLabel = `Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
-                        statusColor = 'color: var(--danger); font-weight:700;';
+                        statusColor = 'color: var(--danger); font-weight: 700;';
                     } else {
-                        badgeClass = 'badge blue-red';
-                        statusLabel = `Opóźnienie ${formatDelay(d.delaySec)}`;
-                        statusColor = 'color: var(--danger); font-weight:600;';
+                        badgeClass = 'badge';
+                        statusLabel = 'Odjechał';
+                        statusColor = 'color: var(--gray-text); font-weight: 500;';
                     }
-                } else if (d.isPast) {
-                    statusLabel = 'Odjechał';
                 }
 
                 return `
@@ -1014,12 +1026,12 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="${badgeClass}">${lineId}</span>
                             <div>
-                                <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
-                                <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong> ${d.delaySec > 0 ? `<span style="color:var(--danger)">(${statusLabel})</span>` : ''}</div>
+                                <strong style="font-size: 0.95rem; ${!d.isPast ? 'color: var(--info);' : ''}">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
+                                <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
                             </div>
                         </div>
                         <div class="time-box">
-                            <div class="time-main">${d.time}</div>
+                            <div class="time-main" style="${!d.isPast ? 'color: var(--info);' : ''}">${d.time}</div>
                             <div class="delay-info" style="${statusColor}">
                                 ${statusLabel}
                             </div>
@@ -1077,8 +1089,8 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         const stopDelay = calculateArrivalDelay(tripId, st.stop_id, timeSec, currentSec);
         const isPast = (timeSec + stopDelay) < currentSec;
 
-        let statusText = 'Zgodnie z rozkładem';
-        let statusStyle = 'color: var(--gray-text); font-weight: 500;';
+        let statusText = 'Jedzie na linii';
+        let statusStyle = 'color: var(--info); font-weight: 600;';
 
         if (isPast) {
             if (stopDelay > 0) {
@@ -1086,6 +1098,7 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
                 statusStyle = 'color: var(--danger); font-weight: 600;';
             } else {
                 statusText = 'Odjechał';
+                statusStyle = 'color: var(--gray-text); font-weight: 500;';
             }
         } else if (stopDelay > 0) {
             statusText = `Opóźnienie ${formatDelay(stopDelay)}`;
@@ -1095,14 +1108,14 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         return `
             <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-weight: 700; color: var(--gray-text); font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
+                    <span style="font-weight: 700; color: ${!isPast ? 'var(--info)' : 'var(--gray-text)'}; font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
                     <div>
-                        <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
+                        <strong style="font-size: 0.95rem; ${!isPast ? 'color: var(--info);' : ''}">${cleanStopName(stopName)}</strong>
                         <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie</div>
                     </div>
                 </div>
                 <div class="time-box">
-                    <div class="time-main">${timeStr.substring(0, 5)}</div>
+                    <div class="time-main" style="${!dIsPast ? 'color: var(--info);' : ''}">${timeStr.substring(0, 5)}</div>
                     <div class="delay-info" style="${statusStyle}">
                         ${statusText}
                     </div>
