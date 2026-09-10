@@ -563,6 +563,18 @@ async function initApp() {
 function startClock() {
     setInterval(() => {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL');
+
+        // Automatyczne odświeżanie aktywnego widoku szczegółów co sekundę
+        const cv = window.appState.currentView;
+        if (cv) {
+            if (cv.type === 'departures' && cv.stopIds && cv.headsign) {
+                loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
+            } else if (cv.type === 'lineDirection' && cv.lineId) {
+                loadLineDirection(cv.lineId, cv.lineName, cv.headsign, cv.dayOffset, true);
+            } else if (cv.type === 'tripStops' && cv.tripId) {
+                loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
+            }
+        }
     }, 1000);
 }
 
@@ -610,7 +622,6 @@ function timeToSeconds(timeStr) {
     return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 }
 
-// Sprawdza czy dany trip jest obecnie w trasie i zwraca nazwę przystanku, na którym aktualnie się znajduje lub mija
 function getActiveVehiclePosition(tripId, currentSec) {
     const tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
     if (!tripStops.length) return null;
@@ -620,7 +631,6 @@ function getActiveVehiclePosition(tripId, currentSec) {
     const endSec = timeToSeconds(tripStops[tripStops.length - 1].arrival_time || tripStops[tripStops.length - 1].departure_time);
 
     if (currentSec >= startSec && currentSec <= endSec) {
-        // Znajdź aktualny lub ostatnio minięty przystanek
         let currentStopName = cleanStopName(window.appState.stopsMap.get(tripStops[0].stop_id));
         for (let i = 0; i < tripStops.length; i++) {
             const arrSec = timeToSeconds(tripStops[i].arrival_time || tripStops[i].departure_time);
@@ -1173,7 +1183,6 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
     `;
 }
 
-// Autouzupełnienie z natychmiastowym reagowaniem na dotknięcie (mobile touch friendly)
 function handleAutocomplete(field, query) {
     const sugBox = document.getElementById(`suggestions-${field}`);
     if (!query || query.length < 2) {
