@@ -6,12 +6,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Główne ustawienia dla profesjonalnego wyglądu */
         body {
-            font-family: 'Roboto', sans-serif; /* Standardowa, czytelna czcionka */
-            background-color: #f8f9fa; /* Bardzo delikatne, jasnoszare tło zamiast czystej bieli */
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             color: #333;
         }
 
@@ -19,76 +18,71 @@
             max-width: 600px;
             margin: 0 auto;
             background: #ffffff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05); /* Subtelny cień dla całej sekcji */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
-        /* Stylizacja nagłówków z ikonami */
         .section-title {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px; /* Odstęp między ikoną a tekstem */
-            color: #555;
-            font-size: 16px;
+            gap: 10px;
+            color: #444;
+            font-size: 15px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 30px;
-            margin-bottom: 20px;
+            margin-top: 25px;
+            margin-bottom: 15px;
             position: relative;
         }
 
-        /* Czerwona linia pod nagłówkiem w stylu MZK */
         .section-title::after {
             content: '';
             position: absolute;
-            bottom: -8px;
+            bottom: -6px;
             left: 0;
             width: 100%;
             height: 2px;
-            background-color: #cc0000; /* Oficjalny czerwony */
+            background-color: #cc0000;
         }
 
-        /* Kolor ikon */
         .section-title i {
             color: #cc0000;
-            font-size: 20px;
+            font-size: 18px;
         }
 
-        /* Siatka przycisków */
         .buttons-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 6px;
             justify-content: flex-start;
         }
 
-        /* Profesjonalne przyciski z numerami linii */
         .line-btn {
             background-color: #ffffff;
             border: 1px solid #e0e0e0;
-            border-radius: 6px; /* Lekko zaokrąglone rogi */
-            min-width: 48px;
-            height: 48px;
+            border-radius: 6px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: #333;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Efekt wypukłości (karty) */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             transition: all 0.2s ease-in-out;
         }
 
-        /* Efekt po najechaniu i kliknięciu */
         .line-btn:hover, .line-btn:active {
             border-color: #cc0000;
             color: #cc0000;
-            box-shadow: 0 2px 6px rgba(204, 0, 0, 0.15);
+            background-color: #fff5f5;
+            box-shadow: 0 2px 5px rgba(204, 0, 0, 0.15);
             transform: translateY(-1px);
         }
     </style>
@@ -96,7 +90,7 @@
 <body>
 
     <div class="schedule-container">
-        <!-- TRAMWAJE -->
+        <!-- LINIE TRAMWAJOWE -->
         <h2 class="section-title">
             <i class="fa-solid fa-train-tram"></i> Linie tramwajowe
         </h2>
@@ -107,7 +101,7 @@
             <a href="#" class="line-btn">4</a>
         </div>
 
-        <!-- AUTOBUSY -->
+        <!-- LINIE AUTOBUSOWE -->
         <h2 class="section-title">
             <i class="fa-solid fa-bus"></i> Linie autobusowe
         </h2>
@@ -117,7 +111,40 @@
             <a href="#" class="line-btn">102</a>
             <a href="#" class="line-btn">103</a>
             <a href="#" class="line-btn">104</a>
-            <!-- Możesz dodać resztę przycisków tutaj -->
+            <a href="#" class="line-btn">105</a>
+            <a href="#" class="line-btn">106</a>
+            <a href="#" class="line-btn">107</a>
+            <a href="#" class="line-btn">108</a>
+            <a href="#" class="line-btn">109</a>
+            <a href="#" class="line-btn">110</a>
+            <a href="#" class="line-btn">111</a>
+            <a href="#" class="line-btn">112</a>
+            <a href="#" class="line-btn">113</a>
+            <a href="#" class="line-btn">114</a>
+            <a href="#" class="line-btn">115</a>
+            <a href="#" class="line-btn">116</a>
+            <a href="#" class="line-btn">117</a>
+            <a href="#" class="line-btn">119</a>
+            <a href="#" class="line-btn">120</a>
+            <a href="#" class="line-btn">121</a>
+            <a href="#" class="line-btn">122</a>
+            <a href="#" class="line-btn">123</a>
+            <a href="#" class="line-btn">124</a>
+            <a href="#" class="line-btn">125</a>
+            <a href="#" class="line-btn">126</a>
+            <a href="#" class="line-btn">127</a>
+            <a href="#" class="line-btn">128</a>
+            <a href="#" class="line-btn">130</a>
+            <a href="#" class="line-btn">131</a>
+            <a href="#" class="line-btn">132</a>
+            <a href="#" class="line-btn">134</a>
+            <a href="#" class="line-btn">135</a>
+            <a href="#" class="line-btn">136</a>
+            <a href="#" class="line-btn">401</a>
+            <a href="#" class="line-btn">402</a>
+            <a href="#" class="line-btn">510</a>
+            <a href="#" class="line-btn">511</a>
+            <a href="#" class="line-btn">512</a>
         </div>
     </div>
 
