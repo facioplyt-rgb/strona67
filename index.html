@@ -3,1090 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – Rozkład i Trasy</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #ffffff;
-            --text: #1a1a1a;
-            --gray-light: #f4f5f7;
-            --gray-border: #d0d7de;
-            --gray-dark: #24292e;
-            --gray-text: #6e7781;
-            
-            /* MZK Colors */
-            --mzk-red: #d31120;
-            --mzk-orange: #f47920;
-            --mzk-red-hover: #b30f1b;
-            
-            /* Routing Badges */
-            --route-green-bg: #d1ffd6;
-            --route-green-text: #0f5132;
-            --route-blue-bg: #cfe2ff;
-            --route-blue-text: #084298;
+        /* Główne ustawienia dla profesjonalnego wyglądu */
+        body {
+            font-family: 'Roboto', sans-serif; /* Standardowa, czytelna czcionka */
+            background-color: #f8f9fa; /* Bardzo delikatne, jasnoszare tło zamiast czystej bieli */
+            margin: 0;
+            padding: 20px;
+            color: #333;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.45; }
+        .schedule-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); /* Subtelny cień dla całej sekcji */
+        }
 
-        header {
-            background: var(--mzk-red);
-            color: #fff;
-            padding: 12px 16px;
+        /* Stylizacja nagłówków z ikonami */
+        .section-title {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-        }
-        .header-logo { font-size: 1.2rem; font-weight: 900; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;}
-        .clock { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-        nav {
-            display: flex;
-            background: #fff;
-            border-bottom: 2px solid var(--gray-border);
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-
-        .nav-btn {
-            flex: 1;
-            background: none;
-            border: none;
-            padding: 14px 8px;
-            font-weight: 700;
-            font-size: 0.95rem;
-            cursor: pointer;
-            text-align: center;
-            color: var(--gray-text);
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s;
-            text-transform: uppercase;
-        }
-        .nav-btn.active { color: var(--mzk-red); border-bottom: 3px solid var(--mzk-red); }
-
-        .container { max-width: 800px; margin: 0 auto; padding: 16px; }
-        .section { display: none; }
-        .section.active { display: block; }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--gray-border);
-            border-radius: 6px;
-            font-size: 0.95rem;
-            margin-bottom: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-            background: #fff;
-        }
-        input[type="text"]:focus { border-color: var(--mzk-red); box-shadow: 0 0 0 2px rgba(211, 17, 32, 0.15); }
-
-        .row-item {
-            padding: 14px;
-            border-bottom: 1px solid #e1e4e8;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-        .row-item:hover { background: var(--gray-light); }
-
-        .badge {
-            display: inline-block;
-            border: 2px solid var(--gray-dark);
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            min-width: 44px;
-            text-align: center;
-            background: #fff;
-            color: var(--gray-dark);
-        }
-        .badge.blue { background: var(--mzk-red); color: #fff; border-color: var(--mzk-red); }
-
-        .back-btn {
-            background: var(--gray-light);
-            border: 1px solid var(--gray-border);
-            padding: 8px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 700;
-            margin-bottom: 14px;
-            font-size: 0.9rem;
-        }
-        .back-btn:hover { background: #eaeef2; }
-
-        .dep-row {
-            padding: 14px;
-            border-bottom: 1px solid #e1e4e8;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-        .dep-row:hover { background: var(--gray-light); }
-        .dep-row.past { opacity: 0.65; background: #fafbfc; }
-        .dep-row.nearest { border-left: 4px solid var(--mzk-red); background: #fffcfc; }
-
-        .time-box { text-align: right; }
-        .time-main { font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-        .countdown-info { font-size: 0.8rem; font-weight: 700; color: var(--mzk-red); }
-        .normal-info { font-size: 0.75rem; font-weight: 600; color: var(--gray-text); margin-top: 2px; }
-
-        .status-bar {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: var(--gray-dark);
-            color: #fff;
-            padding: 6px 16px;
-            font-size: 0.75rem;
-            display: flex;
             justify-content: center;
-            z-index: 100;
+            gap: 10px; /* Odstęp między ikoną a tekstem */
+            color: #555;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            position: relative;
         }
-        
-        .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 600; }
-        
-        /* LINIE TRAMWAJOWE / AUTOBUSOWE - ZDJĘCIE 1 */
-        .category-header { font-size: 1.15rem; font-weight: 800; text-transform: uppercase; margin-top: 20px; letter-spacing: 0.5px;}
-        .category-line { border: none; border-bottom: 3px solid var(--mzk-red); margin: 6px 0 16px 0; }
-        .lines-grid {
+
+        /* Czerwona linia pod nagłówkiem w stylu MZK */
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #cc0000; /* Oficjalny czerwony */
+        }
+
+        /* Kolor ikon */
+        .section-title i {
+            color: #cc0000;
+            font-size: 20px;
+        }
+
+        /* Siatka przycisków */
+        .buttons-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
+            justify-content: flex-start;
         }
-        .line-square {
-            width: 50px;
-            height: 50px;
+
+        /* Profesjonalne przyciski z numerami linii */
+        .line-btn {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px; /* Lekko zaokrąglone rogi */
+            min-width: 48px;
+            height: 48px;
             display: flex;
+            align-items: center;
             justify-content: center;
-            align-items: center;
-            border: 1px solid var(--gray-border);
-            background: #fff;
-            color: #000;
-            font-size: 1.1rem;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
             cursor: pointer;
-            border-radius: 4px;
-            transition: 0.2s;
+            text-decoration: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Efekt wypukłości (karty) */
+            transition: all 0.2s ease-in-out;
         }
-        .line-square:hover { border-color: var(--mzk-red); color: var(--mzk-red); }
 
-        /* WYSZUKIWARKA TRAS - ZDJĘCIE 2 & 3 */
-        .route-form {
-            background: var(--gray-light);
-            border-radius: 12px;
-            padding: 16px;
-            position: relative;
-            margin-bottom: 20px;
-            border: 1px solid var(--gray-border);
+        /* Efekt po najechaniu i kliknięciu */
+        .line-btn:hover, .line-btn:active {
+            border-color: #cc0000;
+            color: #cc0000;
+            box-shadow: 0 2px 6px rgba(204, 0, 0, 0.15);
+            transform: translateY(-1px);
         }
-        .route-input-row { display: flex; align-items: center; position: relative; }
-        .route-input-row input {
-            border: none; border-radius: 0; background: transparent; 
-            margin-bottom: 0; padding: 14px 10px; font-weight: 600; font-size: 1rem;
-        }
-        .route-input-row input:focus { box-shadow: none; }
-        .route-border-bottom { border-bottom: 1px solid var(--gray-border); }
-        .dot { width: 14px; height: 14px; border-radius: 50%; min-width: 14px; margin-right: 8px;}
-        .dot.green { border: 4px solid var(--route-green-text); }
-        .dot.blue { border: 4px solid var(--route-blue-text); }
-        .line-connector {
-            position: absolute; left: 6px; top: 22px; bottom: 22px;
-            width: 2px; background: var(--gray-border); z-index: 1;
-        }
-        .swap-btn {
-            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-            width: 40px; height: 40px; border-radius: 50%; background: #fff;
-            border: 1px solid var(--gray-border); cursor: pointer;
-            display: flex; justify-content: center; align-items: center; font-size: 1.2rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 2; transition: 0.2s;
-        }
-        .swap-btn:hover { background: var(--gray-light); }
-        
-        .btn-primary {
-            width: 100%; background: #008855; color: #fff; border: none;
-            padding: 16px; border-radius: 8px; font-size: 1.1rem; font-weight: 700;
-            cursor: pointer; transition: 0.2s;
-        }
-        .btn-primary:hover { background: #007044; }
-
-        /* KARTY WYNIKÓW WYSZUKIWANIA - ZDJĘCIE 2 */
-        .conn-card {
-            background: #fff;
-            border: 1px solid var(--gray-border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-        }
-        .conn-left { display: flex; flex-direction: column; width: 90px;}
-        .conn-lbl { font-size: 0.75rem; color: var(--gray-text); font-weight: 600; margin-bottom: -2px;}
-        .conn-big-time { font-size: 2rem; font-weight: 800; line-height: 1; letter-spacing: -1px;}
-        .conn-big-time span { font-size: 1rem; font-weight: 600; margin-left: 2px;}
-        
-        .conn-right { display: flex; flex-direction: column; align-items: flex-end; flex-grow: 1; gap: 8px;}
-        .conn-line-badge {
-            background: var(--gray-dark); color: #fff; padding: 4px 10px; 
-            border-radius: 8px; font-weight: 700; font-size: 0.9rem;
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-        .conn-timeline { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; }
-        .t-badge { padding: 3px 8px; border-radius: 12px; }
-        .t-badge.green { background: var(--route-green-bg); color: var(--route-green-text); }
-        .t-badge.blue { background: var(--route-blue-bg); color: var(--route-blue-text); }
-        .t-dur { color: var(--gray-text); font-size: 0.75rem; }
-
     </style>
 </head>
 <body>
 
-<header>
-    <div class="header-logo">MZK Gorzów Wlkp.</div>
-    <div class="clock" id="clock">--:--:--</div>
-</header>
-
-<nav>
-    <button class="nav-btn" onclick="switchTab('stops')">Przystanki</button>
-    <button class="nav-btn active" onclick="switchTab('lines')">Linie</button>
-    <button class="nav-btn" onclick="switchTab('routing')">Trasy</button>
-</nav>
-
-<div class="container" style="padding-bottom: 50px;">
-    
-    <datalist id="stops-datalist"></datalist>
-
-    <!-- PRZYSTANKI -->
-    <section id="sec-stops" class="section">
-        <input type="text" id="stop-search" placeholder="Szukaj przystanku (np. Czereśniowa)..." oninput="filterStops(this.value)">
-        <div id="stops-list" class="msg-box">Wczytywanie bazy GTFS...</div>
-    </section>
-
-    <!-- LINIE (ZDJĘCIE 1) -->
-    <section id="sec-lines" class="section active">
-        <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
-    </section>
-
-    <!-- TRASY (WYSZUKIWARKA - ZDJĘCIA 2 i 3) -->
-    <section id="sec-routing" class="section">
-        <div class="route-form">
-            <div class="line-connector"></div>
-            <div class="route-input-row route-border-bottom">
-                <div class="dot green" style="z-index: 2; background: var(--gray-light);"></div>
-                <input type="text" id="route-from" list="stops-datalist" placeholder="Skąd jedziesz?">
-            </div>
-            <div class="route-input-row">
-                <div class="dot blue" style="z-index: 2; background: var(--gray-light);"></div>
-                <input type="text" id="route-to" list="stops-datalist" placeholder="Dokąd zmierzasz?">
-            </div>
-            <button class="swap-btn" onclick="swapRouteStops()">⇅</button>
+    <div class="schedule-container">
+        <!-- TRAMWAJE -->
+        <h2 class="section-title">
+            <i class="fa-solid fa-train-tram"></i> Linie tramwajowe
+        </h2>
+        <div class="buttons-grid">
+            <a href="#" class="line-btn">1</a>
+            <a href="#" class="line-btn">2</a>
+            <a href="#" class="line-btn">3</a>
+            <a href="#" class="line-btn">4</a>
         </div>
-        
-        <button class="btn-primary" onclick="searchConnections()">Pokaż trasy &rarr;</button>
-        
-        <div id="routing-results" style="margin-top: 20px;">
-            <div style="text-align: center; color: var(--gray-text); font-size: 0.9rem; margin-top: 40px;">
-                Wpisz przystanek początkowy i końcowy, aby wyszukać najszybsze bezpośrednie połączenia.
-            </div>
+
+        <!-- AUTOBUSY -->
+        <h2 class="section-title">
+            <i class="fa-solid fa-bus"></i> Linie autobusowe
+        </h2>
+        <div class="buttons-grid">
+            <a href="#" class="line-btn">100</a>
+            <a href="#" class="line-btn">101</a>
+            <a href="#" class="line-btn">102</a>
+            <a href="#" class="line-btn">103</a>
+            <a href="#" class="line-btn">104</a>
+            <!-- Możesz dodać resztę przycisków tutaj -->
         </div>
-    </section>
+    </div>
 
-    <!-- SZCZEGÓŁY ODJAZDÓW / LINII -->
-    <section id="sec-details" class="section">
-        <button class="back-btn" onclick="goBackDetails()">&larr; Powrót</button>
-        <div id="details-content"></div>
-    </section>
-</div>
-
-<div class="status-bar">
-    <span id="api-status">GTFS Engine Pro | MZK</span>
-</div>
-
-<script>
-window.appState = {
-    stopsMap: new Map(),         
-    routesMap: new Map(),        
-    tripsMap: new Map(),         
-    rawStops: [],                
-    stopTimes: [],               
-    tripStopsMap: new Map(),     
-    serviceIdsToday: new Set(),
-    serviceIdsTomorrow: new Set(),
-    activeServiceIds: new Set(), 
-    stops: [],                   
-    lines: [],                   
-    lastTab: 'lines',
-    currentView: { type: 'none' },
-    backAction: null,
-    rawCalendarText: null,
-    rawCalendarDatesText: null,
-    currentStopIds: null,
-    currentStopName: null,
-    stopAllDeps: [],
-    currentHeadsign: null
-};
-
-function goBackDetails() {
-    if (typeof window.appState.backAction === 'function') {
-        window.appState.backAction();
-    } else {
-        switchTab(window.appState.lastTab || 'lines');
-    }
-}
-
-function parseCSV(text) {
-    const lines = text.replace(/\r/g, '').split('\n');
-    if (lines.length < 2) return [];
-    
-    const parseLine = (line) => {
-        const result = [];
-        let inQuotes = false;
-        let entry = '';
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(entry.trim());
-                entry = '';
-            } else {
-                entry += char;
-            }
-        }
-        result.push(entry.trim());
-        return result;
-    };
-
-    const headers = parseLine(lines[0]);
-    const data = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const currentLine = parseLine(lines[i]);
-        const obj = {};
-        for (let j = 0; j < headers.length; j++) {
-            obj[headers[j]] = currentLine[j] !== undefined ? currentLine[j].replace(/^"|"$/g, '') : '';
-        }
-        data.push(obj);
-    }
-    return data;
-}
-
-function getServiceIdsForDate(targetDate) {
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = days[targetDate.getDay()];
-    const yyyy = targetDate.getFullYear();
-    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(targetDate.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}${mm}${dd}`;
-
-    let serviceIds = new Set();
-    if (window.appState.rawCalendarText) {
-        parseCSV(window.appState.rawCalendarText).forEach(c => {
-            if (dateStr >= c.start_date && dateStr <= c.end_date) {
-                if (c[dayName] === '1') serviceIds.add(c.service_id);
-            }
-        });
-    }
-    if (window.appState.rawCalendarDatesText) {
-        parseCSV(window.appState.rawCalendarDatesText).forEach(cd => {
-            if (cd.date === dateStr) {
-                if (cd.exception_type === '1') serviceIds.add(cd.service_id);
-                if (cd.exception_type === '2') serviceIds.delete(cd.service_id);
-            }
-        });
-    }
-    if (serviceIds.size === 0 && window.appState.rawCalendarText) {
-        parseCSV(window.appState.rawCalendarText).forEach(c => serviceIds.add(c.service_id));
-    }
-    return serviceIds;
-}
-
-async function loadStaticGTFS() {
-    try {
-        const [stopsRes, routesRes, tripsRes, stopTimesRes, calendarRes, calendarDatesRes] = await Promise.all([
-            fetch('./stops.txt').catch(() => null),
-            fetch('./routes.txt').catch(() => null),
-            fetch('./trips.txt').catch(() => null),
-            fetch('./stop_times.txt').catch(() => null),
-            fetch('./calendar.txt').catch(() => null),
-            fetch('./calendar_dates.txt').catch(() => null)
-        ]);
-
-        if (stopsRes && stopsRes.ok) {
-            parseCSV(await stopsRes.text()).forEach(r => {
-                if (r.stop_id && r.stop_name) {
-                    window.appState.stopsMap.set(r.stop_id, r.stop_name);
-                    if (r.stop_lat && r.stop_lon) {
-                        window.appState.rawStops.push({
-                            name: cleanStopName(r.stop_name),
-                            lat: parseFloat(r.stop_lat),
-                            lon: parseFloat(r.stop_lon)
-                        });
-                    }
-                }
-            });
-        }
-
-        if (routesRes && routesRes.ok) {
-            parseCSV(await routesRes.text()).forEach(r => {
-                if (r.route_id) {
-                    window.appState.routesMap.set(r.route_id, r.route_short_name || r.route_long_name || r.route_id);
-                }
-            });
-        }
-
-        if (calendarRes && calendarRes.ok) window.appState.rawCalendarText = await calendarRes.text();
-        if (calendarDatesRes && calendarDatesRes.ok) window.appState.rawCalendarDatesText = await calendarDatesRes.text();
-
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(now.getDate() + 1);
-
-        window.appState.serviceIdsToday = getServiceIdsForDate(now);
-        window.appState.serviceIdsTomorrow = getServiceIdsForDate(tomorrow);
-        window.appState.activeServiceIds = window.appState.serviceIdsToday;
-
-        if (stopTimesRes && stopTimesRes.ok) {
-            window.appState.stopTimes = parseCSV(await stopTimesRes.text());
-            
-            // Map for quick routing
-            window.appState.stopTimes.forEach(st => {
-                if (!window.appState.tripStopsMap.has(st.trip_id)) {
-                    window.appState.tripStopsMap.set(st.trip_id, []);
-                }
-                window.appState.tripStopsMap.get(st.trip_id).push({
-                    stop_id: st.stop_id,
-                    seq: parseInt(st.stop_sequence || 0, 10),
-                    time: st.arrival_time || st.departure_time
-                });
-            });
-            window.appState.tripStopsMap.forEach(arr => arr.sort((a,b) => a.seq - b.seq));
-        }
-
-        const tripLastStopMap = new Map();
-        const tripMaxSeq = new Map();
-        window.appState.stopTimes.forEach(st => {
-            const seq = parseInt(st.stop_sequence || 0, 10);
-            const currentMax = tripMaxSeq.get(st.trip_id) || -1;
-            if (seq >= currentMax) {
-                tripMaxSeq.set(st.trip_id, seq);
-                tripLastStopMap.set(st.trip_id, st.stop_id);
-            }
-        });
-
-        if (tripsRes && tripsRes.ok) {
-            parseCSV(await tripsRes.text()).forEach(t => {
-                if (t.trip_id) {
-                    let headsign = t.trip_headsign;
-                    if (!headsign || headsign.trim() === '') {
-                        const lastStopId = tripLastStopMap.get(t.trip_id);
-                        headsign = lastStopId ? window.appState.stopsMap.get(lastStopId) : 'Linia miejska';
-                    }
-                    window.appState.tripsMap.set(t.trip_id, {
-                        route_id: t.route_id,
-                        trip_headsign: cleanStopName(headsign),
-                        service_id: t.service_id
-                    });
-                }
-            });
-        }
-        return true;
-    } catch (e) {
-        console.error("Błąd ładowania GTFS:", e);
-        return false;
-    }
-}
-
-function cleanStopName(name) {
-    if (!name) return '';
-    return name.replace(/\s*\(\d+\)\s*$/, '').trim();
-}
-
-async function initApp() {
-    startClock();
-    await loadStaticGTFS();
-
-    const groupedStops = new Map();
-    window.appState.stopsMap.forEach((stopName, stopId) => {
-        let cleanName = cleanStopName(stopName);
-        if (!groupedStops.has(cleanName)) groupedStops.set(cleanName, { name: cleanName, ids: [] });
-        groupedStops.get(cleanName).ids.push(stopId);
-    });
-    window.appState.stops = Array.from(groupedStops.values()).sort((a, b) => a.name.localeCompare(b.name));
-
-    const linesMap = new Map();
-    window.appState.routesMap.forEach((rName, rId) => {
-        if (!linesMap.has(rName)) linesMap.set(rName, { id: rName, route_ids: [] });
-        linesMap.get(rName).route_ids.push(String(rId));
-    });
-    window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-
-    // Populate Datalist
-    const datalist = document.getElementById('stops-datalist');
-    window.appState.stops.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.name;
-        datalist.appendChild(opt);
-    });
-
-    renderStops();
-    renderLines();
-    
-    // Refresh loop
-    setInterval(() => refreshCurrentView(), 1000);
-}
-
-function startClock() {
-    setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL'), 1000);
-}
-
-function switchTab(tab) {
-    if (tab !== 'details') {
-        window.appState.lastTab = tab;
-        window.appState.currentView = { type: tab };
-    }
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    
-    const targetSec = document.getElementById(`sec-${tab}`);
-    if (targetSec) targetSec.classList.add('active');
-
-    if (tab !== 'details') {
-        const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(tab));
-        if (btn) btn.classList.add('active');
-    }
-}
-
-function refreshCurrentView() {
-    const cv = window.appState.currentView;
-    if (!cv || cv.type === 'none') return;
-    if (cv.type === 'stopMenu') loadDepartures(cv.stopIds, cv.stopName, undefined, true);
-    else if (cv.type === 'departures') loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
-    else if (cv.type === 'lineRoute') loadLineRoute(cv.lineId, true);
-    else if (cv.type === 'lineDirection') loadLineDirection(cv.lineId, cv.headsign, cv.dayOffset || 0, true);
-    else if (cv.type === 'tripStops') loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
-    else if (cv.type === 'routing' && window.appState.lastRoutingSearch) {
-        // Optional: auto-refresh routing results (omitted to avoid layout jumping while viewing)
-    }
-}
-
-function renderStops() { filterStops(''); }
-
-function filterStops(query) {
-    const box = document.getElementById('stops-list');
-    if (!window.appState.stops.length) {
-        box.innerHTML = '<div class="msg-box">Brak przystanków.</div>';
-        return;
-    }
-    const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
-    if (!filtered.length) {
-        box.innerHTML = '<div class="msg-box">Nie znaleziono przystanku.</div>';
-        return;
-    }
-    box.innerHTML = filtered.map(s => `
-        <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)}, undefined)'>
-            <div><strong>${s.name}</strong></div>
-            <div style="font-size: 0.8rem; color: var(--mzk-red); font-weight: 700;">Wybierz &rarr;</div>
-        </div>
-    `).join('');
-}
-
-/* ROZKŁAD JAZDY (ZDJĘCIE 1) */
-function renderLines() {
-    const box = document.getElementById('lines-list');
-    if (!window.appState.lines.length) {
-        box.innerHTML = '<div class="msg-box">Brak danych o liniach.</div>';
-        return;
-    }
-
-    // Prosty podział: numery 1-9 to zazwyczaj tramwaje w Gorzowie (MZK ma T1, T2, T3, T4 - ale w plikach czesto są to cyfry)
-    const trams = [];
-    const buses = [];
-    
-    window.appState.lines.forEach(l => {
-        const idNum = parseInt(l.id, 10);
-        if (!isNaN(idNum) && idNum < 10) trams.push(l);
-        else if (l.id.toString().toUpperCase().startsWith('T')) trams.push(l);
-        else buses.push(l);
-    });
-
-    let html = `<div style="font-size: 1.6rem; font-weight: 900; margin-bottom: 20px;">ROZKŁAD JAZDY</div>`;
-
-    if (trams.length > 0) {
-        html += `<div class="category-header">🚋 Linie Tramwajowe</div>
-                 <hr class="category-line">
-                 <div class="lines-grid">
-                    ${trams.map(l => `<div class="line-square" onclick='loadLineRoute(${JSON.stringify(l.id)})'>${l.id}</div>`).join('')}
-                 </div>`;
-    }
-
-    if (buses.length > 0) {
-        html += `<div class="category-header" style="${trams.length > 0 ? 'margin-top: 30px;' : ''}">🚌 Linie Autobusowe</div>
-                 <hr class="category-line">
-                 <div class="lines-grid">
-                    ${buses.map(l => `<div class="line-square" onclick='loadLineRoute(${JSON.stringify(l.id)})'>${l.id}</div>`).join('')}
-                 </div>`;
-    }
-
-    box.innerHTML = html;
-}
-
-function timeToSeconds(timeStr) {
-    if (!timeStr) return 0;
-    const parts = timeStr.split(':').map(Number);
-    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
-}
-
-function getCountdown(timeStr) {
-    const now = new Date();
-    const [h, m] = timeStr.split(':').map(Number);
-    const target = new Date();
-    target.setHours(h, m, 0, 0);
-
-    let diffSec = Math.floor((target - now) / 1000);
-    if (diffSec < -30) {
-        target.setDate(target.getDate() + 1);
-        diffSec = Math.floor((target - now) / 1000);
-    }
-    if (diffSec < 0) return 'odjeżdża';
-    const mins = Math.floor(diffSec / 60);
-    if (mins > 59) return timeStr;
-    if (mins === 0) return `< 1 min`;
-    return `za ${mins} min`;
-}
-
-// ==========================================
-// WYSZUKIWARKA TRAS (ZDJĘCIA 2 i 3)
-// ==========================================
-
-function swapRouteStops() {
-    const fromInput = document.getElementById('route-from');
-    const toInput = document.getElementById('route-to');
-    const temp = fromInput.value;
-    fromInput.value = toInput.value;
-    toInput.value = temp;
-}
-
-function searchConnections() {
-    const fromVal = document.getElementById('route-from').value.trim();
-    const toVal = document.getElementById('route-to').value.trim();
-    const resBox = document.getElementById('routing-results');
-
-    if (!fromVal || !toVal) {
-        resBox.innerHTML = '<div class="msg-box">Wprowadź przystanek początkowy i końcowy.</div>';
-        return;
-    }
-
-    const fromStop = window.appState.stops.find(s => s.name.toLowerCase() === fromVal.toLowerCase());
-    const toStop = window.appState.stops.find(s => s.name.toLowerCase() === toVal.toLowerCase());
-
-    if (!fromStop || !toStop) {
-        resBox.innerHTML = '<div class="msg-box" style="color:var(--mzk-red);">Nie odnaleziono podanych przystanków w bazie.</div>';
-        return;
-    }
-
-    if (fromStop.name === toStop.name) {
-        resBox.innerHTML = '<div class="msg-box">Przystanek początkowy i końcowy są takie same.</div>';
-        return;
-    }
-
-    resBox.innerHTML = '<div class="msg-box">Wyszukiwanie bezpośrednich połączeń...</div>';
-    
-    // Oznacz jako szukane w state by nie uciekało
-    window.appState.lastRoutingSearch = { from: fromStop, to: toStop };
-
-    setTimeout(() => {
-        const results = computeDirectRoutes(fromStop.ids, toStop.ids);
-        renderRoutingResults(results, resBox);
-    }, 50); // non-blocking minimal delay
-}
-
-function computeDirectRoutes(fromIds, toIds) {
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    
-    let connections = [];
-    
-    window.appState.tripStopsMap.forEach((stops, tripId) => {
-        const trip = window.appState.tripsMap.get(tripId);
-        if (!trip || !window.appState.activeServiceIds.has(trip.service_id)) return;
-        
-        let idxFrom = stops.findIndex(s => fromIds.includes(String(s.stop_id)));
-        let idxTo = stops.findIndex(s => toIds.includes(String(s.stop_id)));
-        
-        if (idxFrom !== -1 && idxTo !== -1 && idxFrom < idxTo) {
-            const timeFrom = stops[idxFrom].time;
-            const timeTo = stops[idxTo].time;
-            const secFrom = timeToSeconds(timeFrom);
-            
-            // Szukaj tylko dzisiejszych i nadchodzących lub tych co uciekły max 10 min temu
-            if (secFrom > currentSec - 600 && secFrom < 86400) {
-                const lineName = window.appState.routesMap.get(trip.route_id) || '?';
-                const durMin = Math.round((timeToSeconds(timeTo) - secFrom) / 60);
-                
-                connections.push({
-                    tripId: tripId,
-                    line: lineName,
-                    timeFromStr: timeFrom.substring(0, 5),
-                    timeToStr: timeTo.substring(0, 5),
-                    sortSec: secFrom,
-                    duration: durMin,
-                    isPast: secFrom < currentSec
-                });
-            }
-        }
-    });
-
-    connections.sort((a, b) => a.sortSec - b.sortSec);
-    // Zostaw tylko najblizsze przeterminowane 2 i np. 15 nadchodzących
-    let futureConns = connections.filter(c => !c.isPast);
-    let pastConns = connections.filter(c => c.isPast).slice(-1);
-    
-    return [...pastConns, ...futureConns].slice(0, 10);
-}
-
-function renderRoutingResults(connections, container) {
-    if (connections.length === 0) {
-        container.innerHTML = `
-            <div class="msg-box" style="background: #fff; border: 1px solid var(--gray-border); border-radius: 8px;">
-                Brak bezpośrednich połączeń na dzisiaj od tej godziny. 
-                <br><br><span style="font-size:0.85rem;">Spróbuj innej trasy lub uwzględnij przesiadki (brak w obecnej wersji).</span>
-            </div>`;
-        return;
-    }
-
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    let html = '';
-    connections.forEach(c => {
-        let diffSec = c.sortSec - currentSec;
-        let leftLabel = 'Odjazd za:';
-        let leftBig = '';
-        let opacity = c.isPast ? '0.6' : '1';
-
-        if (c.isPast) {
-            leftLabel = 'Odjechał';
-            leftBig = `<div class="conn-big-time">${c.timeFromStr}</div>`;
-        } else {
-            let diffMin = Math.floor(diffSec / 60);
-            if (diffMin < 60) {
-                leftLabel = 'Odjazd za:';
-                leftBig = `<div class="conn-big-time">${diffMin}<span>min</span></div>`;
-            } else {
-                leftLabel = 'Odjazd o:';
-                leftBig = `<div class="conn-big-time">${c.timeFromStr}</div>`;
-            }
-        }
-
-        let isTram = parseInt(c.line) < 10 || c.line.toUpperCase().startsWith('T');
-        let icon = isTram ? '🚋' : '🚌';
-
-        html += `
-            <div class="conn-card" style="opacity: ${opacity};" onclick="loadTripStops('${c.tripId}', '${c.line}', 'Szczegóły')">
-                <div class="conn-left">
-                    <div class="conn-lbl">${leftLabel}</div>
-                    ${leftBig}
-                </div>
-                <div class="conn-right">
-                    <div class="conn-line-badge">${icon} ${c.line}</div>
-                    <div class="conn-timeline">
-                        <span class="t-badge green">${c.timeFromStr}</span>
-                        <span class="t-dur">${c.duration} min</span>
-                        <span class="t-badge blue">${c.timeToStr}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
-}
-
-// ==========================================
-// POZOSTAŁE FUNKCJE WIDOKÓW
-// ==========================================
-
-function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefresh = false) {
-    if (!isRefresh) {
-        switchTab('details');
-        window.appState.backAction = () => switchTab('stops');
-        window.appState.currentView = { type: selectedHeadsign === undefined ? 'stopMenu' : 'departures', stopIds, stopName, headsign: selectedHeadsign };
-        window.appState.currentStopIds = stopIds;
-        window.appState.currentStopName = stopName;
-        window.appState.currentHeadsign = selectedHeadsign;
-    }
-
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    function getDepsForServices(serviceIds, dayOffset) {
-        let list = [];
-        stopIds.forEach(id => {
-            const matchingTimes = window.appState.stopTimes.filter(st => st.stop_id === String(id));
-            matchingTimes.forEach(st => {
-                const trip = window.appState.tripsMap.get(st.trip_id);
-                if (!trip) return;
-                if (serviceIds.size > 0 && !serviceIds.has(trip.service_id)) return;
-
-                const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
-                const arrTimeStr = st.arrival_time || st.departure_time;
-                const arrSec = timeToSeconds(arrTimeStr);
-
-                if (dayOffset === 0) {
-                    if (arrSec >= currentSec - 900 && arrSec <= 86399) {
-                        list.push({
-                            tripId: st.trip_id, line: routeName, headsign: trip.trip_headsign,
-                            time: arrTimeStr.substring(0, 5), sortSec: arrSec, isPast: arrSec < currentSec, dayOffset: 0
-                        });
-                    }
-                } else {
-                    list.push({
-                        tripId: st.trip_id, line: routeName, headsign: trip.trip_headsign,
-                        time: arrTimeStr.substring(0, 5), sortSec: arrSec, isPast: false, dayOffset: 1
-                    });
-                }
-            });
-        });
-        return list;
-    }
-
-    const depsToday = getDepsForServices(window.appState.serviceIdsToday, 0);
-    depsToday.sort((a, b) => a.sortSec - b.sortSec);
-
-    let allDeps = [...depsToday];
-    if (!depsToday.some(d => !d.isPast)) {
-        const depsTomorrow = getDepsForServices(window.appState.serviceIdsTomorrow, 1);
-        depsTomorrow.sort((a, b) => a.sortSec - b.sortSec);
-        allDeps = allDeps.concat(depsTomorrow);
-    }
-    window.appState.stopAllDeps = allDeps;
-
-    if (selectedHeadsign === undefined) renderStopDirectionsMenu(stopName, allDeps);
-    else renderDeparturesFiltered(stopName, allDeps, selectedHeadsign, isRefresh);
-}
-
-function renderStopDirectionsMenu(stopName, deps) {
-    const box = document.getElementById('details-content');
-    if (!deps.length) {
-        box.innerHTML = `<div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów.</div>`;
-        return;
-    }
-    const hMap = new Map();
-    deps.forEach(d => {
-        if (!hMap.has(d.headsign)) hMap.set(d.headsign, { headsign: d.headsign, lines: new Set(), count: 0 });
-        hMap.get(d.headsign).lines.add(d.line);
-        hMap.get(d.headsign).count++;
-    });
-    const hList = Array.from(hMap.values()).sort((a, b) => a.headsign.localeCompare(b.headsign));
-
-    box.innerHTML = `
-        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Wybierz kierunek:</div>
-        
-        <div class="row-item" style="border-left: 4px solid var(--mzk-red); background: var(--gray-light);" onclick='loadDeparturesWithHeadsign("all")'>
-            <div><strong style="font-size: 0.95rem;">Wszystkie kierunki</strong></div>
-            <div style="font-size: 0.8rem; font-weight: 700;">Pokaż &rarr;</div>
-        </div>
-        <div style="margin-top:10px;">
-            ${hList.map(h => `
-                <div class="row-item" onclick='loadDeparturesWithHeadsign(${JSON.stringify(h.headsign)})'>
-                    <div>
-                        <strong style="font-size: 0.95rem;">&rarr; ${h.headsign}</strong>
-                        <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Linie: ${Array.from(h.lines).join(', ')}</div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function loadDeparturesWithHeadsign(headsign) {
-    window.appState.currentHeadsign = headsign;
-    window.appState.currentView = { type: 'departures', stopIds: window.appState.currentStopIds, stopName: window.appState.currentStopName, headsign };
-    window.appState.backAction = () => loadDepartures(window.appState.currentStopIds, window.appState.currentStopName, undefined, false);
-    renderDeparturesFiltered(window.appState.currentStopName, window.appState.stopAllDeps, headsign, false);
-}
-
-function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = false) {
-    const box = document.getElementById('details-content');
-    const filtered = headsignFilter === 'all' ? deps : deps.filter(d => d.headsign === headsignFilter);
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    filtered.forEach(d => { if (d.dayOffset === 0) d.isPast = d.sortSec < currentSec; });
-    const today = filtered.filter(d => d.dayOffset === 0);
-    const nearestIndex = filtered.findIndex(d => !d.isPast);
-
-    box.innerHTML = `
-        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Kierunek: <strong>${headsignFilter === 'all' ? 'Wszystkie' : headsignFilter}</strong></div>
-        
-        <div>
-            ${today.map((d, idx) => {
-                const isNearest = (filtered.indexOf(d) === nearestIndex);
-                let infoHtml = !d.isPast ? `<div class="countdown-info">${getCountdown(d.time)}</div>` : `<div class="normal-info">Odjechał</div>`;
-                return `
-                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick="loadTripStops('${d.tripId}', '${d.line}', '${d.headsign}')">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="badge blue">${d.line}</span>
-                            <div>
-                                <strong style="font-size: 0.95rem;">${d.headsign}</strong>
-                                ${infoHtml}
-                            </div>
-                        </div>
-                        <div class="time-main">${d.time}</div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-    if (nearestIndex !== -1 && !isRefresh) setTimeout(() => document.getElementById('nearest-dep')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-}
-
-function loadLineRoute(lineId, isRefresh = false) {
-    if (!isRefresh) {
-        switchTab('details');
-        window.appState.backAction = () => switchTab('lines');
-        window.appState.currentView = { type: 'lineRoute', lineId };
-    }
-    const box = document.getElementById('details-content');
-    const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
-    
-    if (!lineObj) { box.innerHTML = `<div class="msg-box">Brak danych.</div>`; return; }
-
-    let lineTrips = [];
-    window.appState.tripsMap.forEach((trip, tripId) => {
-        if (lineObj.route_ids.includes(String(trip.route_id))) {
-            if (window.appState.activeServiceIds.size === 0 || window.appState.activeServiceIds.has(trip.service_id)) {
-                lineTrips.push({ tripId, ...trip });
-            }
-        }
-    });
-
-    const dMap = new Map();
-    lineTrips.forEach(t => {
-        const h = t.trip_headsign || 'Nieznany';
-        if (!dMap.has(h)) dMap.set(h, { headsign: h, count: 0 });
-        dMap.get(h).count++;
-    });
-    const directions = Array.from(dMap.values());
-
-    box.innerHTML = `
-        <div style="font-weight: 800; font-size: 1.4rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Linia ${lineId}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Wybierz kierunek jazdy:</div>
-        <div>
-            ${directions.map(d => `
-                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(d.headsign)}, 0)'>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div>
-                            <strong style="font-size: 1rem;">&rarr; ${d.headsign}</strong>
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function loadLineDirection(lineId, headsign, dayOffset = 0, isRefresh = false) {
-    if (!isRefresh) {
-        switchTab('details');
-        window.appState.backAction = () => loadLineRoute(lineId);
-        window.appState.currentView = { type: 'lineDirection', lineId, headsign, dayOffset };
-    }
-    const box = document.getElementById('details-content');
-    const activeServices = dayOffset === 1 ? window.appState.serviceIdsTomorrow : window.appState.serviceIdsToday;
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    
-    const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
-    if (!lineObj) return;
-
-    let trips = [];
-    window.appState.tripsMap.forEach((t, tId) => {
-        if (lineObj.route_ids.includes(String(t.route_id)) && t.trip_headsign === headsign) {
-            if (activeServices.size === 0 || activeServices.has(t.service_id)) trips.push(tId);
-        }
-    });
-
-    let deps = [];
-    trips.forEach(tId => {
-        const stopsArr = window.appState.tripStopsMap.get(tId);
-        if (!stopsArr || !stopsArr.length) return;
-        const first = stopsArr[0];
-        const timeSec = timeToSeconds(first.time);
-        deps.push({
-            tripId: tId, time: first.time.substring(0,5), sortSec: timeSec,
-            startStop: cleanStopName(window.appState.stopsMap.get(first.stop_id)),
-            isPast: dayOffset === 0 && timeSec < currentSec
-        });
-    });
-    deps.sort((a, b) => a.sortSec - b.sortSec);
-    let nearestIndex = dayOffset === 0 ? deps.findIndex(d => !d.isPast) : -1;
-
-    box.innerHTML = `
-        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Linia ${lineId} &rarr; ${headsign}</div>
-        <div>
-            ${deps.map((d, i) => `
-                <div id="${i === nearestIndex ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${i === nearestIndex ? 'nearest' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${headsign}')">
-                    <div>
-                        <strong style="font-size: 0.95rem;">Odjazd: ${d.time}</strong>
-                        <div style="font-size: 0.75rem; color: var(--gray-text);">Start: ${d.startStop}</div>
-                    </div>
-                    <div class="time-main">${d.time}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-    if (dayOffset === 0 && nearestIndex !== -1 && !isRefresh) setTimeout(() => document.getElementById('nearest-dep')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-}
-
-function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
-    if (!isRefresh) {
-        switchTab('details');
-        window.appState.backAction = () => {
-            // W zależności czy weszliśmy z wyszukiwarki czy z rozkładu, wracamy do odpowiedniej zakładki
-            if (window.appState.lastTab === 'routing') switchTab('routing');
-            else loadLineDirection(lineId, headsign);
-        };
-        window.appState.currentView = { type: 'tripStops', tripId, lineId, headsign };
-    }
-    const box = document.getElementById('details-content');
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-    let stopsArr = window.appState.tripStopsMap.get(tripId) || [];
-    
-    box.innerHTML = `
-        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Trasa | Linia ${lineId}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Kierunek: <strong>${headsign}</strong></div>
-        <div>
-            ${stopsArr.map((st, i) => {
-                const sName = window.appState.stopsMap.get(st.stop_id);
-                const tStr = st.time.substring(0, 5);
-                const isPast = timeToSeconds(st.time) < currentSec;
-                return `
-                    <div class="dep-row ${isPast ? 'past' : ''}">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <span style="font-weight:700; color:var(--mzk-red); min-width: 20px;">${i+1}.</span>
-                            <strong style="font-size: 0.95rem;">${cleanStopName(sName)}</strong>
-                        </div>
-                        <div class="time-main">${tStr}</div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-}
-
-document.addEventListener('DOMContentLoaded', initApp);
-</script>
 </body>
 </html>
