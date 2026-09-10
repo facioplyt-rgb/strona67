@@ -232,6 +232,7 @@
             padding: 14px;
             margin-bottom: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            cursor: pointer;
         }
         .route-header-info {
             display: flex;
@@ -564,7 +565,6 @@ function startClock() {
     setInterval(() => {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL');
 
-        // Automatyczne odświeżanie aktywnego widoku szczegółów co sekundę
         const cv = window.appState.currentView;
         if (cv) {
             if (cv.type === 'departures' && cv.stopIds && cv.headsign) {
@@ -1185,12 +1185,12 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
 
 function handleAutocomplete(field, query) {
     const sugBox = document.getElementById(`suggestions-${field}`);
-    if (!query || query.length < 2) {
+    if (!query || query.length < 1) {
         sugBox.style.display = 'none';
         return;
     }
 
-    const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
+    const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
     if (!filtered.length) {
         sugBox.style.display = 'none';
         return;
@@ -1198,7 +1198,7 @@ function handleAutocomplete(field, query) {
 
     sugBox.style.display = 'block';
     sugBox.innerHTML = filtered.map(s => `
-        <div class="autocomplete-item" onmousedown="selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})" ontouchstart="selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})">
+        <div class="autocomplete-item" onmousedown="event.preventDefault(); selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})">
             <strong>${s.name}</strong>
         </div>
     `).join('');
@@ -1228,11 +1228,23 @@ function swapStops() {
 
 function searchConnections() {
     const resultsBox = document.getElementById('search-results');
-    const fromIds = window.appState.searchFromIds;
-    const toIds = window.appState.searchToIds;
+    const fromVal = document.getElementById('route-from').value.trim();
+    const toVal = document.getElementById('route-to').value.trim();
+
+    let fromIds = window.appState.searchFromIds || [];
+    let toIds = window.appState.searchToIds || [];
+
+    if (!fromIds.length && fromVal) {
+        const match = window.appState.stops.find(s => s.name.toLowerCase() === fromVal.toLowerCase() || s.name.toLowerCase().includes(fromVal.toLowerCase()));
+        if (match) fromIds = match.ids;
+    }
+    if (!toIds.length && toVal) {
+        const match = window.appState.stops.find(s => s.name.toLowerCase() === toVal.toLowerCase() || s.name.toLowerCase().includes(toVal.toLowerCase()));
+        if (match) toIds = match.ids;
+    }
 
     if (!fromIds.length || !toIds.length) {
-        resultsBox.innerHTML = '<div class="msg-box" style="color: #cc0000; font-weight: bold;">Wybierz prawidłowy przystanek początkowy i docelowy z podpowiedzi!</div>';
+        resultsBox.innerHTML = '<div class="msg-box" style="color: #cc0000; font-weight: bold;">Wpisz lub wybierz poprawne przystanki początkowy i docelowy z podpowiedzi!</div>';
         return;
     }
 
@@ -1242,31 +1254,37 @@ function searchConnections() {
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
     let connections = [];
-    let fromTimesMap = new Map();
+    
+    // Funkcja do przeszukiwania dla określonych service_id
+    const runSearch = (serviceIdsFilter) => {
+        let fromTimesMap = new Map();
 
-    window.appState.stopTimes.forEach(st => {
-        if (fromIds.map(String).includes(String(st.stop_id))) {
-            const timeSec = timeToSeconds(st.arrival_time || st.departure_time);
-            if (timeSec >= currentSec - 600) {
-                fromTimesMap.set(st.trip_id, {
-                    timeStr: (st.arrival_time || st.departure_time).substring(0, 5),
-                    sec: timeSec,
-                    seq: parseInt(st.stop_sequence || 0, 10)
-                });
-            }
-        }
-    });
-
-    window.appState.stopTimes.forEach(st => {
-        if (toIds.map(String).includes(String(st.stop_id)) && fromTimesMap.has(st.trip_id)) {
-            const fromInfo = fromTimesMap.get(st.trip_id);
-            const toSeq = parseInt(st.stop_sequence || 0, 10);
-            
-            if (toSeq > fromInfo.seq) {
-                const toSec = timeToSeconds(st.arrival_time || st.departure_time);
+        window.appState.stopTimes.forEach(st => {
+            if (fromIds.map(String).includes(String(st.stop_id))) {
                 const trip = window.appState.tripsMap.get(st.trip_id);
-                if (trip) {
-                    if (window.appState.activeServiceIds.size === 0 || window.appState.activeServiceIds.has(trip.service_id)) {
+                if (!trip) return;
+                if (serviceIdsFilter && serviceIdsFilter.size > 0 && !serviceIdsFilter.has(trip.service_id)) return;
+
+                const timeSec = timeToSeconds(st.arrival_time || st.departure_time);
+                if (timeSec >= currentSec - 600) {
+                    fromTimesMap.set(st.trip_id, {
+                        timeStr: (st.arrival_time || st.departure_time).substring(0, 5),
+                        sec: timeSec,
+                        seq: parseInt(st.stop_sequence || 0, 10)
+                    });
+                }
+            }
+        });
+
+        window.appState.stopTimes.forEach(st => {
+            if (toIds.map(String).includes(String(st.stop_id)) && fromTimesMap.has(st.trip_id)) {
+                const fromInfo = fromTimesMap.get(st.trip_id);
+                const toSeq = parseInt(st.stop_sequence || 0, 10);
+                
+                if (toSeq > fromInfo.seq) {
+                    const toSec = timeToSeconds(st.arrival_time || st.departure_time);
+                    const trip = window.appState.tripsMap.get(st.trip_id);
+                    if (trip) {
                         const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
                         const durationMins = Math.max(1, Math.round((toSec - fromInfo.sec) / 60));
                         
@@ -1283,13 +1301,29 @@ function searchConnections() {
                     }
                 }
             }
-        }
+        });
+    };
+
+    // Próba wyszukania z uwzględnieniem dzisiejszego kalendarza
+    runSearch(window.appState.activeServiceIds);
+
+    // Jeśli brak wyników, spróbuj przeszukać wszystkie kursy bez filtrowania kalendarza (awaryjnie)
+    if (!connections.length) {
+        runSearch(null);
+    }
+
+    // Usunięcie duplikatów (jeśli ten sam trip dopasował się wielokrotnie)
+    const uniqueMap = new Map();
+    connections.forEach(c => {
+        const key = `${c.tripId}-${c.depTime}`;
+        if (!uniqueMap.has(key)) uniqueMap.set(key, c);
     });
+    connections = Array.from(uniqueMap.values());
 
     connections.sort((a, b) => a.depSec - b.depSec);
 
     if (!connections.length) {
-        resultsBox.innerHTML = '<div class="msg-box">Brak bezpośrednich połączeń między wybranymi przystankami na dzisiaj.</div>';
+        resultsBox.innerHTML = '<div class="msg-box">Brak bezpośrednich połączeń między wybranymi przystankami. Sprawdź poprawność nazw przystanków.</div>';
         return;
     }
 
