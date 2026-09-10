@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – GTFS Pro</title>
+    <title>MZK Gorzów Wlkp. – Rozkład i Trasy</title>
     <style>
         :root {
             --bg: #ffffff;
@@ -12,49 +12,57 @@
             --gray-border: #d0d7de;
             --gray-dark: #24292e;
             --gray-text: #6e7781;
-            --danger: #cf222e;
-            --success: #1a7f37;
-            --info: #0969da;
-            --warning-bg: #fff8c5;
-            --warning-border: #d4a72c;
+            
+            /* MZK Colors */
+            --mzk-red: #d31120;
+            --mzk-orange: #f47920;
+            --mzk-red-hover: #b30f1b;
+            
+            /* Routing Badges */
+            --route-green-bg: #d1ffd6;
+            --route-green-text: #0f5132;
+            --route-blue-bg: #cfe2ff;
+            --route-blue-text: #084298;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.45; }
 
         header {
-            background: var(--gray-dark);
+            background: var(--mzk-red);
             color: #fff;
             padding: 12px 16px;
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
-            border-bottom: 3px solid #000;
         }
-
+        .header-logo { font-size: 1.2rem; font-weight: 900; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;}
         .clock { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
         nav {
             display: flex;
-            background: var(--gray-light);
-            border-bottom: 1px solid var(--gray-border);
+            background: #fff;
+            border-bottom: 2px solid var(--gray-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
 
         .nav-btn {
             flex: 1;
             background: none;
             border: none;
-            border-right: 1px solid var(--gray-border);
-            padding: 12px 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
+            padding: 14px 8px;
+            font-weight: 700;
+            font-size: 0.95rem;
             cursor: pointer;
             text-align: center;
-            color: var(--gray-dark);
-            transition: background 0.15s;
+            color: var(--gray-text);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            text-transform: uppercase;
         }
-        .nav-btn:last-child { border-right: none; }
-        .nav-btn.active { background: #fff; color: #000; border-bottom: 3px solid var(--gray-dark); }
+        .nav-btn.active { color: var(--mzk-red); border-bottom: 3px solid var(--mzk-red); }
 
         .container { max-width: 800px; margin: 0 auto; padding: 16px; }
         .section { display: none; }
@@ -62,18 +70,19 @@
 
         input[type="text"] {
             width: 100%;
-            padding: 10px 12px;
+            padding: 12px;
             border: 1px solid var(--gray-border);
             border-radius: 6px;
             font-size: 0.95rem;
             margin-bottom: 14px;
             outline: none;
             transition: border-color 0.2s;
+            background: #fff;
         }
-        input[type="text"]:focus { border-color: var(--info); box-shadow: 0 0 0 3px rgba(9,105,218,0.15); }
+        input[type="text"]:focus { border-color: var(--mzk-red); box-shadow: 0 0 0 2px rgba(211, 17, 32, 0.15); }
 
         .row-item {
-            padding: 12px;
+            padding: 14px;
             border-bottom: 1px solid #e1e4e8;
             display: flex;
             justify-content: space-between;
@@ -95,46 +104,36 @@
             background: #fff;
             color: var(--gray-dark);
         }
-        .badge.blue {
-            background: var(--info);
-            color: #fff;
-        }
+        .badge.blue { background: var(--mzk-red); color: #fff; border-color: var(--mzk-red); }
 
         .back-btn {
             background: var(--gray-light);
             border: 1px solid var(--gray-border);
-            padding: 6px 12px;
+            padding: 8px 14px;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 14px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
         }
         .back-btn:hover { background: #eaeef2; }
 
         .dep-row {
-            padding: 12px;
+            padding: 14px;
             border-bottom: 1px solid #e1e4e8;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: background 0.1s;
         }
         .dep-row:hover { background: var(--gray-light); }
-        .dep-row.past {
-            opacity: 0.65;
-            background: #fafbfc;
-        }
-        .dep-row.nearest {
-            border-left: 4px solid var(--info);
-            background: #f0f7ff;
-        }
+        .dep-row.past { opacity: 0.65; background: #fafbfc; }
+        .dep-row.nearest { border-left: 4px solid var(--mzk-red); background: #fffcfc; }
 
         .time-box { text-align: right; }
-        .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
-        .countdown-info { font-size: 0.75rem; font-weight: 600; color: var(--info); }
-        .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
+        .time-main { font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+        .countdown-info { font-size: 0.8rem; font-weight: 700; color: var(--mzk-red); }
+        .normal-info { font-size: 0.75rem; font-weight: 600; color: var(--gray-text); margin-top: 2px; }
 
         .status-bar {
             position: fixed;
@@ -144,45 +143,157 @@
             padding: 6px 16px;
             font-size: 0.75rem;
             display: flex;
-            justify-content: flex-end;
+            justify-content: center;
             z-index: 100;
         }
         
-        .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 500; }
-        .alert-box {
-            background: var(--warning-bg);
-            border: 1px solid var(--warning-border);
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            margin-bottom: 12px;
-            font-weight: 600;
-            text-align: center;
-            color: #735c0f;
+        .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 600; }
+        
+        /* LINIE TRAMWAJOWE / AUTOBUSOWE - ZDJĘCIE 1 */
+        .category-header { font-size: 1.15rem; font-weight: 800; text-transform: uppercase; margin-top: 20px; letter-spacing: 0.5px;}
+        .category-line { border: none; border-bottom: 3px solid var(--mzk-red); margin: 6px 0 16px 0; }
+        .lines-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
+        .line-square {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--gray-border);
+            background: #fff;
+            color: #000;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+        .line-square:hover { border-color: var(--mzk-red); color: var(--mzk-red); }
+
+        /* WYSZUKIWARKA TRAS - ZDJĘCIE 2 & 3 */
+        .route-form {
+            background: var(--gray-light);
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            margin-bottom: 20px;
+            border: 1px solid var(--gray-border);
+        }
+        .route-input-row { display: flex; align-items: center; position: relative; }
+        .route-input-row input {
+            border: none; border-radius: 0; background: transparent; 
+            margin-bottom: 0; padding: 14px 10px; font-weight: 600; font-size: 1rem;
+        }
+        .route-input-row input:focus { box-shadow: none; }
+        .route-border-bottom { border-bottom: 1px solid var(--gray-border); }
+        .dot { width: 14px; height: 14px; border-radius: 50%; min-width: 14px; margin-right: 8px;}
+        .dot.green { border: 4px solid var(--route-green-text); }
+        .dot.blue { border: 4px solid var(--route-blue-text); }
+        .line-connector {
+            position: absolute; left: 6px; top: 22px; bottom: 22px;
+            width: 2px; background: var(--gray-border); z-index: 1;
+        }
+        .swap-btn {
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            width: 40px; height: 40px; border-radius: 50%; background: #fff;
+            border: 1px solid var(--gray-border); cursor: pointer;
+            display: flex; justify-content: center; align-items: center; font-size: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 2; transition: 0.2s;
+        }
+        .swap-btn:hover { background: var(--gray-light); }
+        
+        .btn-primary {
+            width: 100%; background: #008855; color: #fff; border: none;
+            padding: 16px; border-radius: 8px; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary:hover { background: #007044; }
+
+        /* KARTY WYNIKÓW WYSZUKIWANIA - ZDJĘCIE 2 */
+        .conn-card {
+            background: #fff;
+            border: 1px solid var(--gray-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+        .conn-left { display: flex; flex-direction: column; width: 90px;}
+        .conn-lbl { font-size: 0.75rem; color: var(--gray-text); font-weight: 600; margin-bottom: -2px;}
+        .conn-big-time { font-size: 2rem; font-weight: 800; line-height: 1; letter-spacing: -1px;}
+        .conn-big-time span { font-size: 1rem; font-weight: 600; margin-left: 2px;}
+        
+        .conn-right { display: flex; flex-direction: column; align-items: flex-end; flex-grow: 1; gap: 8px;}
+        .conn-line-badge {
+            background: var(--gray-dark); color: #fff; padding: 4px 10px; 
+            border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .conn-timeline { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem; }
+        .t-badge { padding: 3px 8px; border-radius: 12px; }
+        .t-badge.green { background: var(--route-green-bg); color: var(--route-green-text); }
+        .t-badge.blue { background: var(--route-blue-bg); color: var(--route-blue-text); }
+        .t-dur { color: var(--gray-text); font-size: 0.75rem; }
+
     </style>
 </head>
 <body>
 
 <header>
+    <div class="header-logo">MZK Gorzów Wlkp.</div>
     <div class="clock" id="clock">--:--:--</div>
 </header>
 
 <nav>
-    <button class="nav-btn active" onclick="switchTab('stops')">Przystanki</button>
-    <button class="nav-btn" onclick="switchTab('lines')">Linie</button>
+    <button class="nav-btn" onclick="switchTab('stops')">Przystanki</button>
+    <button class="nav-btn active" onclick="switchTab('lines')">Linie</button>
+    <button class="nav-btn" onclick="switchTab('routing')">Trasy</button>
 </nav>
 
 <div class="container" style="padding-bottom: 50px;">
+    
+    <datalist id="stops-datalist"></datalist>
+
     <!-- PRZYSTANKI -->
-    <section id="sec-stops" class="section active">
-        <input type="text" id="stop-search" placeholder="Szukaj konkretnego przystanku..." oninput="filterStops(this.value)">
-        <div id="stops-list" class="msg-box">Wczytywanie bazy przystanków GTFS...</div>
+    <section id="sec-stops" class="section">
+        <input type="text" id="stop-search" placeholder="Szukaj przystanku (np. Czereśniowa)..." oninput="filterStops(this.value)">
+        <div id="stops-list" class="msg-box">Wczytywanie bazy GTFS...</div>
     </section>
 
-    <!-- LINIE -->
-    <section id="sec-lines" class="section">
+    <!-- LINIE (ZDJĘCIE 1) -->
+    <section id="sec-lines" class="section active">
         <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
+    </section>
+
+    <!-- TRASY (WYSZUKIWARKA - ZDJĘCIA 2 i 3) -->
+    <section id="sec-routing" class="section">
+        <div class="route-form">
+            <div class="line-connector"></div>
+            <div class="route-input-row route-border-bottom">
+                <div class="dot green" style="z-index: 2; background: var(--gray-light);"></div>
+                <input type="text" id="route-from" list="stops-datalist" placeholder="Skąd jedziesz?">
+            </div>
+            <div class="route-input-row">
+                <div class="dot blue" style="z-index: 2; background: var(--gray-light);"></div>
+                <input type="text" id="route-to" list="stops-datalist" placeholder="Dokąd zmierzasz?">
+            </div>
+            <button class="swap-btn" onclick="swapRouteStops()">⇅</button>
+        </div>
+        
+        <button class="btn-primary" onclick="searchConnections()">Pokaż trasy &rarr;</button>
+        
+        <div id="routing-results" style="margin-top: 20px;">
+            <div style="text-align: center; color: var(--gray-text); font-size: 0.9rem; margin-top: 40px;">
+                Wpisz przystanek początkowy i końcowy, aby wyszukać najszybsze bezpośrednie połączenia.
+            </div>
+        </div>
     </section>
 
     <!-- SZCZEGÓŁY ODJAZDÓW / LINII -->
@@ -193,7 +304,7 @@
 </div>
 
 <div class="status-bar">
-    <span id="api-status">GTFS Engine Active</span>
+    <span id="api-status">GTFS Engine Pro | MZK</span>
 </div>
 
 <script>
@@ -203,12 +314,13 @@ window.appState = {
     tripsMap: new Map(),         
     rawStops: [],                
     stopTimes: [],               
+    tripStopsMap: new Map(),     
     serviceIdsToday: new Set(),
     serviceIdsTomorrow: new Set(),
     activeServiceIds: new Set(), 
     stops: [],                   
     lines: [],                   
-    lastTab: 'stops',
+    lastTab: 'lines',
     currentView: { type: 'none' },
     backAction: null,
     rawCalendarText: null,
@@ -223,7 +335,7 @@ function goBackDetails() {
     if (typeof window.appState.backAction === 'function') {
         window.appState.backAction();
     } else {
-        switchTab(window.appState.lastTab || 'stops');
+        switchTab(window.appState.lastTab || 'lines');
     }
 }
 
@@ -329,12 +441,8 @@ async function loadStaticGTFS() {
             });
         }
 
-        if (calendarRes && calendarRes.ok) {
-            window.appState.rawCalendarText = await calendarRes.text();
-        }
-        if (calendarDatesRes && calendarDatesRes.ok) {
-            window.appState.rawCalendarDatesText = await calendarDatesRes.text();
-        }
+        if (calendarRes && calendarRes.ok) window.appState.rawCalendarText = await calendarRes.text();
+        if (calendarDatesRes && calendarDatesRes.ok) window.appState.rawCalendarDatesText = await calendarDatesRes.text();
 
         const now = new Date();
         const tomorrow = new Date(now);
@@ -346,11 +454,23 @@ async function loadStaticGTFS() {
 
         if (stopTimesRes && stopTimesRes.ok) {
             window.appState.stopTimes = parseCSV(await stopTimesRes.text());
+            
+            // Map for quick routing
+            window.appState.stopTimes.forEach(st => {
+                if (!window.appState.tripStopsMap.has(st.trip_id)) {
+                    window.appState.tripStopsMap.set(st.trip_id, []);
+                }
+                window.appState.tripStopsMap.get(st.trip_id).push({
+                    stop_id: st.stop_id,
+                    seq: parseInt(st.stop_sequence || 0, 10),
+                    time: st.arrival_time || st.departure_time
+                });
+            });
+            window.appState.tripStopsMap.forEach(arr => arr.sort((a,b) => a.seq - b.seq));
         }
 
         const tripLastStopMap = new Map();
         const tripMaxSeq = new Map();
-
         window.appState.stopTimes.forEach(st => {
             const seq = parseInt(st.stop_sequence || 0, 10);
             const currentMax = tripMaxSeq.get(st.trip_id) || -1;
@@ -376,7 +496,6 @@ async function loadStaticGTFS() {
                 }
             });
         }
-
         return true;
     } catch (e) {
         console.error("Błąd ładowania GTFS:", e);
@@ -396,35 +515,35 @@ async function initApp() {
     const groupedStops = new Map();
     window.appState.stopsMap.forEach((stopName, stopId) => {
         let cleanName = cleanStopName(stopName);
-        if (!groupedStops.has(cleanName)) {
-            groupedStops.set(cleanName, { name: cleanName, ids: [] });
-        }
+        if (!groupedStops.has(cleanName)) groupedStops.set(cleanName, { name: cleanName, ids: [] });
         groupedStops.get(cleanName).ids.push(stopId);
     });
-
     window.appState.stops = Array.from(groupedStops.values()).sort((a, b) => a.name.localeCompare(b.name));
 
     const linesMap = new Map();
     window.appState.routesMap.forEach((rName, rId) => {
-        if (!linesMap.has(rName)) {
-            linesMap.set(rName, { id: rName, route_ids: [], name: `Linia ${rName}` });
-        }
+        if (!linesMap.has(rName)) linesMap.set(rName, { id: rName, route_ids: [] });
         linesMap.get(rName).route_ids.push(String(rId));
     });
     window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
+    // Populate Datalist
+    const datalist = document.getElementById('stops-datalist');
+    window.appState.stops.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        datalist.appendChild(opt);
+    });
+
     renderStops();
     renderLines();
-
-    setInterval(() => {
-        refreshCurrentView();
-    }, 1000);
+    
+    // Refresh loop
+    setInterval(() => refreshCurrentView(), 1000);
 }
 
 function startClock() {
-    setInterval(() => {
-        document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL');
-    }, 1000);
+    setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL'), 1000);
 }
 
 function switchTab(tab) {
@@ -447,20 +566,13 @@ function switchTab(tab) {
 function refreshCurrentView() {
     const cv = window.appState.currentView;
     if (!cv || cv.type === 'none') return;
-    if (cv.type === 'stops') {
-        // keep input filter active
-    } else if (cv.type === 'stopMenu') {
-        loadDepartures(cv.stopIds, cv.stopName, undefined, true);
-    } else if (cv.type === 'departures') {
-        loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
-    } else if (cv.type === 'lines') {
-        // static list
-    } else if (cv.type === 'lineRoute') {
-        loadLineRoute(cv.lineId, cv.lineName, true);
-    } else if (cv.type === 'lineDirection') {
-        loadLineDirection(cv.lineId, cv.lineName, cv.headsign, cv.dayOffset || 0, true);
-    } else if (cv.type === 'tripStops') {
-        loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
+    if (cv.type === 'stopMenu') loadDepartures(cv.stopIds, cv.stopName, undefined, true);
+    else if (cv.type === 'departures') loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
+    else if (cv.type === 'lineRoute') loadLineRoute(cv.lineId, true);
+    else if (cv.type === 'lineDirection') loadLineDirection(cv.lineId, cv.headsign, cv.dayOffset || 0, true);
+    else if (cv.type === 'tripStops') loadTripStops(cv.tripId, cv.lineId, cv.headsign, true);
+    else if (cv.type === 'routing' && window.appState.lastRoutingSearch) {
+        // Optional: auto-refresh routing results (omitted to avoid layout jumping while viewing)
     }
 }
 
@@ -469,20 +581,60 @@ function renderStops() { filterStops(''); }
 function filterStops(query) {
     const box = document.getElementById('stops-list');
     if (!window.appState.stops.length) {
-        box.innerHTML = '<div class="msg-box">Brak przystanków w pliku stops.txt.</div>';
+        box.innerHTML = '<div class="msg-box">Brak przystanków.</div>';
         return;
     }
     const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
     if (!filtered.length) {
-        box.innerHTML = '<div class="msg-box">Nie znaleziono pasującego przystanku.</div>';
+        box.innerHTML = '<div class="msg-box">Nie znaleziono przystanku.</div>';
         return;
     }
     box.innerHTML = filtered.map(s => `
         <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)}, undefined)'>
             <div><strong>${s.name}</strong></div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz kierunek &rarr;</div>
+            <div style="font-size: 0.8rem; color: var(--mzk-red); font-weight: 700;">Wybierz &rarr;</div>
         </div>
     `).join('');
+}
+
+/* ROZKŁAD JAZDY (ZDJĘCIE 1) */
+function renderLines() {
+    const box = document.getElementById('lines-list');
+    if (!window.appState.lines.length) {
+        box.innerHTML = '<div class="msg-box">Brak danych o liniach.</div>';
+        return;
+    }
+
+    // Prosty podział: numery 1-9 to zazwyczaj tramwaje w Gorzowie (MZK ma T1, T2, T3, T4 - ale w plikach czesto są to cyfry)
+    const trams = [];
+    const buses = [];
+    
+    window.appState.lines.forEach(l => {
+        const idNum = parseInt(l.id, 10);
+        if (!isNaN(idNum) && idNum < 10) trams.push(l);
+        else if (l.id.toString().toUpperCase().startsWith('T')) trams.push(l);
+        else buses.push(l);
+    });
+
+    let html = `<div style="font-size: 1.6rem; font-weight: 900; margin-bottom: 20px;">ROZKŁAD JAZDY</div>`;
+
+    if (trams.length > 0) {
+        html += `<div class="category-header">🚋 Linie Tramwajowe</div>
+                 <hr class="category-line">
+                 <div class="lines-grid">
+                    ${trams.map(l => `<div class="line-square" onclick='loadLineRoute(${JSON.stringify(l.id)})'>${l.id}</div>`).join('')}
+                 </div>`;
+    }
+
+    if (buses.length > 0) {
+        html += `<div class="category-header" style="${trams.length > 0 ? 'margin-top: 30px;' : ''}">🚌 Linie Autobusowe</div>
+                 <hr class="category-line">
+                 <div class="lines-grid">
+                    ${buses.map(l => `<div class="line-square" onclick='loadLineRoute(${JSON.stringify(l.id)})'>${l.id}</div>`).join('')}
+                 </div>`;
+    }
+
+    box.innerHTML = html;
 }
 
 function timeToSeconds(timeStr) {
@@ -491,16 +643,181 @@ function timeToSeconds(timeStr) {
     return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 }
 
+function getCountdown(timeStr) {
+    const now = new Date();
+    const [h, m] = timeStr.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+
+    let diffSec = Math.floor((target - now) / 1000);
+    if (diffSec < -30) {
+        target.setDate(target.getDate() + 1);
+        diffSec = Math.floor((target - now) / 1000);
+    }
+    if (diffSec < 0) return 'odjeżdża';
+    const mins = Math.floor(diffSec / 60);
+    if (mins > 59) return timeStr;
+    if (mins === 0) return `< 1 min`;
+    return `za ${mins} min`;
+}
+
+// ==========================================
+// WYSZUKIWARKA TRAS (ZDJĘCIA 2 i 3)
+// ==========================================
+
+function swapRouteStops() {
+    const fromInput = document.getElementById('route-from');
+    const toInput = document.getElementById('route-to');
+    const temp = fromInput.value;
+    fromInput.value = toInput.value;
+    toInput.value = temp;
+}
+
+function searchConnections() {
+    const fromVal = document.getElementById('route-from').value.trim();
+    const toVal = document.getElementById('route-to').value.trim();
+    const resBox = document.getElementById('routing-results');
+
+    if (!fromVal || !toVal) {
+        resBox.innerHTML = '<div class="msg-box">Wprowadź przystanek początkowy i końcowy.</div>';
+        return;
+    }
+
+    const fromStop = window.appState.stops.find(s => s.name.toLowerCase() === fromVal.toLowerCase());
+    const toStop = window.appState.stops.find(s => s.name.toLowerCase() === toVal.toLowerCase());
+
+    if (!fromStop || !toStop) {
+        resBox.innerHTML = '<div class="msg-box" style="color:var(--mzk-red);">Nie odnaleziono podanych przystanków w bazie.</div>';
+        return;
+    }
+
+    if (fromStop.name === toStop.name) {
+        resBox.innerHTML = '<div class="msg-box">Przystanek początkowy i końcowy są takie same.</div>';
+        return;
+    }
+
+    resBox.innerHTML = '<div class="msg-box">Wyszukiwanie bezpośrednich połączeń...</div>';
+    
+    // Oznacz jako szukane w state by nie uciekało
+    window.appState.lastRoutingSearch = { from: fromStop, to: toStop };
+
+    setTimeout(() => {
+        const results = computeDirectRoutes(fromStop.ids, toStop.ids);
+        renderRoutingResults(results, resBox);
+    }, 50); // non-blocking minimal delay
+}
+
+function computeDirectRoutes(fromIds, toIds) {
+    const now = new Date();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    
+    let connections = [];
+    
+    window.appState.tripStopsMap.forEach((stops, tripId) => {
+        const trip = window.appState.tripsMap.get(tripId);
+        if (!trip || !window.appState.activeServiceIds.has(trip.service_id)) return;
+        
+        let idxFrom = stops.findIndex(s => fromIds.includes(String(s.stop_id)));
+        let idxTo = stops.findIndex(s => toIds.includes(String(s.stop_id)));
+        
+        if (idxFrom !== -1 && idxTo !== -1 && idxFrom < idxTo) {
+            const timeFrom = stops[idxFrom].time;
+            const timeTo = stops[idxTo].time;
+            const secFrom = timeToSeconds(timeFrom);
+            
+            // Szukaj tylko dzisiejszych i nadchodzących lub tych co uciekły max 10 min temu
+            if (secFrom > currentSec - 600 && secFrom < 86400) {
+                const lineName = window.appState.routesMap.get(trip.route_id) || '?';
+                const durMin = Math.round((timeToSeconds(timeTo) - secFrom) / 60);
+                
+                connections.push({
+                    tripId: tripId,
+                    line: lineName,
+                    timeFromStr: timeFrom.substring(0, 5),
+                    timeToStr: timeTo.substring(0, 5),
+                    sortSec: secFrom,
+                    duration: durMin,
+                    isPast: secFrom < currentSec
+                });
+            }
+        }
+    });
+
+    connections.sort((a, b) => a.sortSec - b.sortSec);
+    // Zostaw tylko najblizsze przeterminowane 2 i np. 15 nadchodzących
+    let futureConns = connections.filter(c => !c.isPast);
+    let pastConns = connections.filter(c => c.isPast).slice(-1);
+    
+    return [...pastConns, ...futureConns].slice(0, 10);
+}
+
+function renderRoutingResults(connections, container) {
+    if (connections.length === 0) {
+        container.innerHTML = `
+            <div class="msg-box" style="background: #fff; border: 1px solid var(--gray-border); border-radius: 8px;">
+                Brak bezpośrednich połączeń na dzisiaj od tej godziny. 
+                <br><br><span style="font-size:0.85rem;">Spróbuj innej trasy lub uwzględnij przesiadki (brak w obecnej wersji).</span>
+            </div>`;
+        return;
+    }
+
+    const now = new Date();
+    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    let html = '';
+    connections.forEach(c => {
+        let diffSec = c.sortSec - currentSec;
+        let leftLabel = 'Odjazd za:';
+        let leftBig = '';
+        let opacity = c.isPast ? '0.6' : '1';
+
+        if (c.isPast) {
+            leftLabel = 'Odjechał';
+            leftBig = `<div class="conn-big-time">${c.timeFromStr}</div>`;
+        } else {
+            let diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) {
+                leftLabel = 'Odjazd za:';
+                leftBig = `<div class="conn-big-time">${diffMin}<span>min</span></div>`;
+            } else {
+                leftLabel = 'Odjazd o:';
+                leftBig = `<div class="conn-big-time">${c.timeFromStr}</div>`;
+            }
+        }
+
+        let isTram = parseInt(c.line) < 10 || c.line.toUpperCase().startsWith('T');
+        let icon = isTram ? '🚋' : '🚌';
+
+        html += `
+            <div class="conn-card" style="opacity: ${opacity};" onclick="loadTripStops('${c.tripId}', '${c.line}', 'Szczegóły')">
+                <div class="conn-left">
+                    <div class="conn-lbl">${leftLabel}</div>
+                    ${leftBig}
+                </div>
+                <div class="conn-right">
+                    <div class="conn-line-badge">${icon} ${c.line}</div>
+                    <div class="conn-timeline">
+                        <span class="t-badge green">${c.timeFromStr}</span>
+                        <span class="t-dur">${c.duration} min</span>
+                        <span class="t-badge blue">${c.timeToStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+// ==========================================
+// POZOSTAŁE FUNKCJE WIDOKÓW
+// ==========================================
+
 function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
         window.appState.backAction = () => switchTab('stops');
-        window.appState.currentView = { 
-            type: selectedHeadsign === undefined ? 'stopMenu' : 'departures', 
-            stopIds, 
-            stopName, 
-            headsign: selectedHeadsign 
-        };
+        window.appState.currentView = { type: selectedHeadsign === undefined ? 'stopMenu' : 'departures', stopIds, stopName, headsign: selectedHeadsign };
         window.appState.currentStopIds = stopIds;
         window.appState.currentStopName = stopName;
         window.appState.currentHeadsign = selectedHeadsign;
@@ -516,10 +833,7 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
             matchingTimes.forEach(st => {
                 const trip = window.appState.tripsMap.get(st.trip_id);
                 if (!trip) return;
-
-                if (serviceIds.size > 0 && !serviceIds.has(trip.service_id)) {
-                    return;
-                }
+                if (serviceIds.size > 0 && !serviceIds.has(trip.service_id)) return;
 
                 const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
                 const arrTimeStr = st.arrival_time || st.departure_time;
@@ -527,28 +841,15 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
 
                 if (dayOffset === 0) {
                     if (arrSec >= currentSec - 900 && arrSec <= 86399) {
-                        const isPast = arrSec < currentSec;
                         list.push({
-                            tripId: st.trip_id,
-                            stopId: st.stop_id,
-                            line: routeName,
-                            headsign: trip.trip_headsign,
-                            time: arrTimeStr.substring(0, 5),
-                            sortSec: arrSec,
-                            isPast: isPast,
-                            dayOffset: 0
+                            tripId: st.trip_id, line: routeName, headsign: trip.trip_headsign,
+                            time: arrTimeStr.substring(0, 5), sortSec: arrSec, isPast: arrSec < currentSec, dayOffset: 0
                         });
                     }
                 } else {
                     list.push({
-                        tripId: st.trip_id,
-                        stopId: st.stop_id,
-                        line: routeName,
-                        headsign: trip.trip_headsign,
-                        time: arrTimeStr.substring(0, 5),
-                        sortSec: arrSec,
-                        isPast: false,
-                        dayOffset: 1
+                        tripId: st.trip_id, line: routeName, headsign: trip.trip_headsign,
+                        time: arrTimeStr.substring(0, 5), sortSec: arrSec, isPast: false, dayOffset: 1
                     });
                 }
             });
@@ -559,67 +860,47 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
     const depsToday = getDepsForServices(window.appState.serviceIdsToday, 0);
     depsToday.sort((a, b) => a.sortSec - b.sortSec);
 
-    const hasUpcomingToday = depsToday.some(d => !d.isPast);
-
     let allDeps = [...depsToday];
-    if (!hasUpcomingToday) {
+    if (!depsToday.some(d => !d.isPast)) {
         const depsTomorrow = getDepsForServices(window.appState.serviceIdsTomorrow, 1);
         depsTomorrow.sort((a, b) => a.sortSec - b.sortSec);
         allDeps = allDeps.concat(depsTomorrow);
     }
-
     window.appState.stopAllDeps = allDeps;
 
-    if (selectedHeadsign === undefined) {
-        renderStopDirectionsMenu(stopName, allDeps);
-        return;
-    }
-
-    renderDeparturesFiltered(stopName, allDeps, selectedHeadsign, isRefresh);
+    if (selectedHeadsign === undefined) renderStopDirectionsMenu(stopName, allDeps);
+    else renderDeparturesFiltered(stopName, allDeps, selectedHeadsign, isRefresh);
 }
 
 function renderStopDirectionsMenu(stopName, deps) {
     const box = document.getElementById('details-content');
-    
     if (!deps.length) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów dla tego przystanku.</div>`;
+        box.innerHTML = `<div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów.</div>`;
         return;
     }
-
-    const headsignsMap = new Map();
+    const hMap = new Map();
     deps.forEach(d => {
-        if (!headsignsMap.has(d.headsign)) {
-            headsignsMap.set(d.headsign, { headsign: d.headsign, lines: new Set(), count: 0 });
-        }
-        headsignsMap.get(d.headsign).lines.add(d.line);
-        headsignsMap.get(d.headsign).count++;
+        if (!hMap.has(d.headsign)) hMap.set(d.headsign, { headsign: d.headsign, lines: new Set(), count: 0 });
+        hMap.get(d.headsign).lines.add(d.line);
+        hMap.get(d.headsign).count++;
     });
-
-    const headsignsList = Array.from(headsignsMap.values()).sort((a, b) => a.headsign.localeCompare(b.headsign));
+    const hList = Array.from(hMap.values()).sort((a, b) => a.headsign.localeCompare(b.headsign));
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wybierz kierunek jazdy lub wyświetl wszystkie:</div>
+        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Wybierz kierunek:</div>
         
-        <div class="row-item" style="background: var(--gray-light); border-left: 4px solid var(--info); margin-bottom: 10px;" onclick='loadDeparturesWithHeadsign("all")'>
-            <div>
-                <strong style="font-size: 0.95rem;">Wszystkie kierunki (wszystkie linie)</strong>
-                <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Łącznie kursów: ${deps.length}</div>
-            </div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Pokaż &rarr;</div>
+        <div class="row-item" style="border-left: 4px solid var(--mzk-red); background: var(--gray-light);" onclick='loadDeparturesWithHeadsign("all")'>
+            <div><strong style="font-size: 0.95rem;">Wszystkie kierunki</strong></div>
+            <div style="font-size: 0.8rem; font-weight: 700;">Pokaż &rarr;</div>
         </div>
-
-        <div style="font-weight: 600; font-size: 0.9rem; margin: 14px 0 8px 0;">Kierunki docelowe:</div>
-        <div>
-            ${headsignsList.map(h => `
+        <div style="margin-top:10px;">
+            ${hList.map(h => `
                 <div class="row-item" onclick='loadDeparturesWithHeadsign(${JSON.stringify(h.headsign)})'>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div>
-                            <strong style="font-size: 0.95rem;">&rarr; ${h.headsign}</strong>
-                            <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Linie: ${Array.from(h.lines).sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true})).join(', ')} | Kursów: ${h.count}</div>
-                        </div>
+                    <div>
+                        <strong style="font-size: 0.95rem;">&rarr; ${h.headsign}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Linie: ${Array.from(h.lines).join(', ')}</div>
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz &rarr;</div>
                 </div>
             `).join('')}
         </div>
@@ -628,174 +909,57 @@ function renderStopDirectionsMenu(stopName, deps) {
 
 function loadDeparturesWithHeadsign(headsign) {
     window.appState.currentHeadsign = headsign;
-    window.appState.currentView = { 
-        type: 'departures', 
-        stopIds: window.appState.currentStopIds, 
-        stopName: window.appState.currentStopName, 
-        headsign: headsign 
-    };
+    window.appState.currentView = { type: 'departures', stopIds: window.appState.currentStopIds, stopName: window.appState.currentStopName, headsign };
     window.appState.backAction = () => loadDepartures(window.appState.currentStopIds, window.appState.currentStopName, undefined, false);
     renderDeparturesFiltered(window.appState.currentStopName, window.appState.stopAllDeps, headsign, false);
 }
 
 function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = false) {
     const box = document.getElementById('details-content');
-    
     const filtered = headsignFilter === 'all' ? deps : deps.filter(d => d.headsign === headsignFilter);
-
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
-    filtered.forEach(d => {
-        if (d.dayOffset === 0) {
-            d.isPast = d.sortSec < currentSec;
-        }
-    });
-
-    const todayFiltered = filtered.filter(d => d.dayOffset === 0);
-    const tomorrowFiltered = filtered.filter(d => d.dayOffset === 1);
-    const hasUpcomingTodayFiltered = todayFiltered.some(d => !d.isPast);
-
-    let nearestIndex = filtered.findIndex(d => !d.isPast);
+    filtered.forEach(d => { if (d.dayOffset === 0) d.isPast = d.sortSec < currentSec; });
+    const today = filtered.filter(d => d.dayOffset === 0);
+    const nearestIndex = filtered.findIndex(d => !d.isPast);
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Kierunek: <strong>${headsignFilter === 'all' ? 'Wszystkie kierunki' : headsignFilter}</strong></div>
+        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">${stopName}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Kierunek: <strong>${headsignFilter === 'all' ? 'Wszystkie' : headsignFilter}</strong></div>
         
         <div>
-            ${!hasUpcomingTodayFiltered && todayFiltered.length > 0 ? `
-                <div class="alert-box">
-                    Brak kursów w dniu dzisiejszym dla tego filtra
-                </div>
-            ` : ''}
-
-            ${todayFiltered.map(d => {
+            ${today.map((d, idx) => {
                 const isNearest = (filtered.indexOf(d) === nearestIndex);
-                let infoHtml = '';
-                let statusLabel = 'Wg rozkładu';
-                let statusColor = 'color: var(--gray-text); font-weight:500;';
-                let badgeClass = 'badge blue';
-
-                if (!d.isPast) {
-                    infoHtml = `<div class="countdown-info">${getCountdown(d.time)}</div>`;
-                } else {
-                    infoHtml = `<div class="normal-info">Odjechał planowo</div>`;
-                    statusLabel = 'Odjechał';
-                }
-
+                let infoHtml = !d.isPast ? `<div class="countdown-info">${getCountdown(d.time)}</div>` : `<div class="normal-info">Odjechał</div>`;
                 return `
-                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}">
+                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick="loadTripStops('${d.tripId}', '${d.line}', '${d.headsign}')">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="${badgeClass}">${d.line}</span>
+                            <span class="badge blue">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
                                 ${infoHtml}
                             </div>
                         </div>
-                        <div class="time-box">
-                            <div class="time-main">${d.time}</div>
-                            <div class="delay-info" style="${statusColor}">
-                                ${statusLabel}
-                            </div>
-                        </div>
+                        <div class="time-main">${d.time}</div>
                     </div>
                 `;
             }).join('')}
-
-            ${tomorrowFiltered.length > 0 ? `
-                <div style="text-align: center; margin: 16px 0 10px 0;">
-                    <span class="badge" style="background: var(--gray-dark); color: #fff; font-size: 0.8rem; padding: 4px 12px; border-radius: 12px;">Jutro</span>
-                </div>
-                ${tomorrowFiltered.map(d => {
-                    const isNearest = (filtered.indexOf(d) === nearestIndex);
-                    const badgeClass = 'badge blue';
-                    return `
-                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span class="${badgeClass}">${d.line}</span>
-                                <div>
-                                    <strong style="font-size: 0.95rem;">${d.headsign}</strong>
-                                    <div class="countdown-info">Planowy (Jutro)</div>
-                                </div>
-                            </div>
-                            <div class="time-box">
-                                <div class="time-main">${d.time}</div>
-                                <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">Rozkład planowy</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            ` : ''}
         </div>
     `;
-
-    if (nearestIndex !== -1 && !isRefresh) {
-        setTimeout(() => {
-            const el = document.getElementById('nearest-dep');
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 150);
-    }
+    if (nearestIndex !== -1 && !isRefresh) setTimeout(() => document.getElementById('nearest-dep')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
 }
 
-function getCountdown(timeStr) {
-    const now = new Date();
-    const [h, m] = timeStr.split(':').map(Number);
-    const target = new Date();
-    target.setHours(h, m, 0, 0);
-
-    let diffSec = Math.floor((target - now) / 1000);
-    if (diffSec < -30) {
-        target.setDate(target.getDate() + 1);
-        diffSec = Math.floor((target - now) / 1000);
-    }
-
-    if (diffSec < 0) return 'odjeżdża';
-    const mins = Math.floor(diffSec / 60);
-    const secs = diffSec % 60;
-
-    if (mins > 59) {
-        return timeStr;
-    }
-
-    if (mins === 0) return `za ${secs} s`;
-    return `za ${mins} min ${secs} s`;
-}
-
-function renderLines() {
-    const box = document.getElementById('lines-list');
-    if (!window.appState.lines.length) {
-        box.innerHTML = '<div class="msg-box">Brak linii w pliku routes.txt.</div>';
-        return;
-    }
-    box.innerHTML = window.appState.lines.map(l => `
-        <div class="row-item" onclick='loadLineRoute(${JSON.stringify(l.id)}, ${JSON.stringify(l.name)})'>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span class="badge blue">${l.id}</span>
-                <strong>${l.name}</strong>
-            </div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz kierunek &rarr;</div>
-        </div>
-    `).join('');
-}
-
-function loadLineRoute(lineId, lineName, isRefresh = false) {
+function loadLineRoute(lineId, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
         window.appState.backAction = () => switchTab('lines');
-        window.appState.currentView = { type: 'lineRoute', lineId, lineName };
+        window.appState.currentView = { type: 'lineRoute', lineId };
     }
     const box = document.getElementById('details-content');
-    if (!isRefresh) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName}</div><div class="msg-box">Ładowanie kierunków linii...</div>`;
-    }
-
     const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
-    if (!lineObj) {
-        box.innerHTML = `<div class="msg-box">Nie znaleziono danych dla tej linii.</div>`;
-        return;
-    }
+    
+    if (!lineObj) { box.innerHTML = `<div class="msg-box">Brak danych.</div>`; return; }
 
     let lineTrips = [];
     window.appState.tripsMap.forEach((trip, tripId) => {
@@ -806,209 +970,119 @@ function loadLineRoute(lineId, lineName, isRefresh = false) {
         }
     });
 
-    const directionsMap = new Map();
-    lineTrips.forEach(trip => {
-        const headsign = trip.trip_headsign || 'Kierunek nieznany';
-        if (!directionsMap.has(headsign)) {
-            directionsMap.set(headsign, { headsign, count: 0 });
-        }
-        directionsMap.get(headsign).count++;
+    const dMap = new Map();
+    lineTrips.forEach(t => {
+        const h = t.trip_headsign || 'Nieznany';
+        if (!dMap.has(h)) dMap.set(h, { headsign: h, count: 0 });
+        dMap.get(h).count++;
     });
-
-    const directions = Array.from(directionsMap.values());
-
-    if (!directions.length) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName}</div><div class="msg-box">Brak kursów dla tej linii na dzisiejszy dzień.</div>`;
-        return;
-    }
+    const directions = Array.from(dMap.values());
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} – Wybierz kierunek</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wybierz kierunek jazdy, aby zobaczyć kursy:</div>
+        <div style="font-weight: 800; font-size: 1.4rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Linia ${lineId}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Wybierz kierunek jazdy:</div>
         <div>
             ${directions.map(d => `
-                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(d.headsign)}, 0)'>
+                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(d.headsign)}, 0)'>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span class="badge blue">${lineId}</span>
                         <div>
-                            <strong style="font-size: 0.95rem;">Kierunek: ${d.headsign}</strong>
-                            <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Liczba kursów dzisiaj: ${d.count}</div>
+                            <strong style="font-size: 1rem;">&rarr; ${d.headsign}</strong>
                         </div>
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz &rarr;</div>
                 </div>
             `).join('')}
         </div>
     `;
 }
 
-function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh = false) {
+function loadLineDirection(lineId, headsign, dayOffset = 0, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
-        window.appState.backAction = () => loadLineRoute(lineId, lineName);
-        window.appState.currentView = { type: 'lineDirection', lineId, lineName, headsign, dayOffset };
+        window.appState.backAction = () => loadLineRoute(lineId);
+        window.appState.currentView = { type: 'lineDirection', lineId, headsign, dayOffset };
     }
     const box = document.getElementById('details-content');
-    if (!isRefresh) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${lineName} &rarr; ${headsign}</div><div class="msg-box">Ładowanie rozkładu dla kierunku...</div>`;
-    }
-
     const activeServices = dayOffset === 1 ? window.appState.serviceIdsTomorrow : window.appState.serviceIdsToday;
-    const dayLabel = dayOffset === 1 ? 'Następny dzień (Jutro)' : 'Dzisiaj';
-
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
     
     const lineObj = window.appState.lines.find(l => String(l.id) === String(lineId));
     if (!lineObj) return;
 
-    let lineTrips = [];
-    window.appState.tripsMap.forEach((trip, tripId) => {
-        if (lineObj.route_ids.includes(String(trip.route_id)) && trip.trip_headsign === headsign) {
-            if (activeServices.size === 0 || activeServices.has(trip.service_id)) {
-                lineTrips.push({ tripId, ...trip });
-            }
+    let trips = [];
+    window.appState.tripsMap.forEach((t, tId) => {
+        if (lineObj.route_ids.includes(String(t.route_id)) && t.trip_headsign === headsign) {
+            if (activeServices.size === 0 || activeServices.has(t.service_id)) trips.push(tId);
         }
     });
 
-    let allLineDepartures = [];
-    lineTrips.forEach(trip => {
-        const stList = window.appState.stopTimes.filter(st => String(st.trip_id) === String(trip.tripId));
-        if (!stList.length) return;
-        
-        stList.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
-        const firstStop = stList[0];
-        const startStopName = window.appState.stopsMap.get(firstStop.stop_id) || 'Początek trasy';
-        const timeStr = firstStop.departure_time || firstStop.arrival_time;
-        const timeSec = timeToSeconds(timeStr);
-
-        const isPast = dayOffset === 0 && timeSec < currentSec;
-
-        allLineDepartures.push({
-            tripId: trip.tripId,
-            stopId: firstStop.stop_id,
-            time: timeStr.substring(0, 5),
-            sortSec: timeSec,
-            headsign: trip.trip_headsign,
-            startStop: cleanStopName(startStopName),
-            isPast: isPast
+    let deps = [];
+    trips.forEach(tId => {
+        const stopsArr = window.appState.tripStopsMap.get(tId);
+        if (!stopsArr || !stopsArr.length) return;
+        const first = stopsArr[0];
+        const timeSec = timeToSeconds(first.time);
+        deps.push({
+            tripId: tId, time: first.time.substring(0,5), sortSec: timeSec,
+            startStop: cleanStopName(window.appState.stopsMap.get(first.stop_id)),
+            isPast: dayOffset === 0 && timeSec < currentSec
         });
     });
-
-    allLineDepartures.sort((a, b) => a.sortSec - b.sortSec);
-
-    let nearestIndex = -1;
-    if (dayOffset === 0) {
-        nearestIndex = allLineDepartures.findIndex(d => !d.isPast);
-    }
+    deps.sort((a, b) => a.sortSec - b.sortSec);
+    let nearestIndex = dayOffset === 0 ? deps.findIndex(d => !d.isPast) : -1;
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony. Możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
+        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Linia ${lineId} &rarr; ${headsign}</div>
         <div>
-            ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
-                const isNearest = (index === nearestIndex);
-                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Wg rozkładu');
-                let statusColor = 'color: var(--gray-text); font-weight:500;';
-                let badgeClass = 'badge blue';
-
-                return `
-                    <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="${badgeClass}">${lineId}</span>
-                            <div>
-                                <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
-                                <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
-                            </div>
-                        </div>
-                        <div class="time-box">
-                            <div class="time-main">${d.time}</div>
-                            <div class="delay-info" style="${statusColor}">
-                                ${statusLabel}
-                            </div>
-                        </div>
+            ${deps.map((d, i) => `
+                <div id="${i === nearestIndex ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${i === nearestIndex ? 'nearest' : ''}" onclick="loadTripStops('${d.tripId}', '${lineId}', '${headsign}')">
+                    <div>
+                        <strong style="font-size: 0.95rem;">Odjazd: ${d.time}</strong>
+                        <div style="font-size: 0.75rem; color: var(--gray-text);">Start: ${d.startStop}</div>
                     </div>
-                `;
-            }).join('') : '<div class="msg-box">Brak kursów w tym kierunku na wybraną dobę.</div>'}
-        </div>
-        
-        <div style="margin-top: 20px; margin-bottom: 15px;">
-            ${dayOffset === 0 ? `
-                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="width: 100%; text-align: center; background: var(--gray-dark); color: #fff; padding: 12px; font-size: 0.95rem;">Przejdź do rozkładu na następny dzień (Jutro) &rarr;</button>
-            ` : `
-                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="width: 100%; text-align: center; background: var(--gray-dark); color: #fff; padding: 12px; font-size: 0.95rem;">&larr; Wróć do rozkładu na dzisiaj</button>
-            `}
+                    <div class="time-main">${d.time}</div>
+                </div>
+            `).join('')}
         </div>
     `;
-
-    if (dayOffset === 0 && nearestIndex !== -1 && !isRefresh) {
-        setTimeout(() => {
-            const el = document.getElementById('nearest-dep');
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 150);
-    }
+    if (dayOffset === 0 && nearestIndex !== -1 && !isRefresh) setTimeout(() => document.getElementById('nearest-dep')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
 }
 
 function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
-        window.appState.backAction = () => loadLineDirection(lineId, `Linia ${lineId}`, headsign);
+        window.appState.backAction = () => {
+            // W zależności czy weszliśmy z wyszukiwarki czy z rozkładu, wracamy do odpowiedniej zakładki
+            if (window.appState.lastTab === 'routing') switchTab('routing');
+            else loadLineDirection(lineId, headsign);
+        };
         window.appState.currentView = { type: 'tripStops', tripId, lineId, headsign };
     }
     const box = document.getElementById('details-content');
-    if (!isRefresh) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
-    }
-
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
-    let tripStops = window.appState.stopTimes.filter(st => String(st.trip_id) === String(tripId));
-    tripStops.sort((a, b) => parseInt(a.stop_sequence || 0, 10) - parseInt(b.stop_sequence || 0, 10));
-
-    if (!tripStops.length) {
-        box.innerHTML = `<div class="msg-box">Brak szczegółów przystanków dla tego kursu w bazie GTFS.</div>`;
-        return;
-    }
-
-    let stopsHtml = tripStops.map((st, index) => {
-        const stopName = window.appState.stopsMap.get(st.stop_id) || `Przystanek #${st.stop_id}`;
-        const timeStr = st.arrival_time || st.departure_time || '';
-        const timeSec = timeToSeconds(timeStr);
-        const isPast = timeSec < currentSec;
-
-        let statusText = 'Rozkład planowy';
-        let statusStyle = 'color: var(--gray-text); font-weight: 500;';
-
-        if (isPast) {
-            statusText = 'Odjechał';
-        }
-
-        return `
-            <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-weight: 700; color: var(--gray-text); font-size: 0.85rem; min-width: 24px;">${index + 1}.</span>
-                    <div>
-                        <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
-                        <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie</div>
-                    </div>
-                </div>
-                <div class="time-box">
-                    <div class="time-main">${timeStr.substring(0, 5)}</div>
-                    <div class="delay-info" style="${statusStyle}">
-                        ${statusText}
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-
+    let stopsArr = window.appState.tripStopsMap.get(tripId) || [];
+    
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">Linia ${lineId} – Przebieg kursu</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Kierunek: <strong>${headsign}</strong></div>
-        <div>${stopsHtml}</div>
+        <div style="font-weight: 800; font-size: 1.2rem; border-bottom: 3px solid var(--mzk-red); padding-bottom: 6px;">Trasa | Linia ${lineId}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin: 10px 0;">Kierunek: <strong>${headsign}</strong></div>
+        <div>
+            ${stopsArr.map((st, i) => {
+                const sName = window.appState.stopsMap.get(st.stop_id);
+                const tStr = st.time.substring(0, 5);
+                const isPast = timeToSeconds(st.time) < currentSec;
+                return `
+                    <div class="dep-row ${isPast ? 'past' : ''}">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span style="font-weight:700; color:var(--mzk-red); min-width: 20px;">${i+1}.</span>
+                            <strong style="font-size: 0.95rem;">${cleanStopName(sName)}</strong>
+                        </div>
+                        <div class="time-main">${tStr}</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
     `;
 }
 
