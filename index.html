@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZK Gorzów Wlkp. – GTFS Pro</title>
+    <title>Rozkład Jazdy</title>
     <style>
         :root {
             --bg: #ffffff;
@@ -27,12 +27,12 @@
             color: #fff;
             padding: 12px 16px;
             display: flex;
-            justify-content: flex-end;
+            justify-content: center;
             align-items: center;
             border-bottom: 3px solid #000;
         }
 
-        .clock { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .clock { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
 
         nav {
             display: flex;
@@ -95,20 +95,9 @@
             background: #fff;
             color: var(--gray-dark);
         }
-        .badge.blue {
-            background: var(--info);
-            color: #fff;
-        }
-        .badge.blue-red {
-            background: linear-gradient(135deg, #0969da 50%, #cf222e 50%);
-            color: #fff;
-            border-color: var(--gray-dark);
-        }
-        .badge.red {
-            background: var(--danger);
-            color: #fff;
-            border-color: var(--gray-dark);
-        }
+        .badge.blue { background: var(--info); color: #fff; }
+        .badge.blue-red { background: linear-gradient(135deg, #0969da 50%, #cf222e 50%); color: #fff; border-color: var(--gray-dark); }
+        .badge.red { background: var(--danger); color: #fff; border-color: var(--gray-dark); }
 
         .back-btn {
             background: var(--gray-light);
@@ -132,14 +121,8 @@
             transition: background 0.1s;
         }
         .dep-row:hover { background: var(--gray-light); }
-        .dep-row.past {
-            opacity: 0.65;
-            background: #fafbfc;
-        }
-        .dep-row.nearest {
-            border-left: 4px solid var(--info);
-            background: #f0f7ff;
-        }
+        .dep-row.past { opacity: 0.65; background: #fafbfc; }
+        .dep-row.nearest { border-left: 4px solid var(--info); background: #f0f7ff; }
 
         .time-box { text-align: right; }
         .time-main { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
@@ -147,18 +130,6 @@
         .delay-info { font-size: 0.75rem; font-weight: 600; color: var(--danger); margin-top: 2px; }
         .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
-        .status-bar {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: var(--gray-dark);
-            color: #fff;
-            padding: 6px 16px;
-            font-size: 0.75rem;
-            display: flex;
-            justify-content: flex-end;
-            z-index: 100;
-        }
-        
         .msg-box { text-align: center; padding: 30px; color: var(--gray-text); font-weight: 500; }
         .alert-box {
             background: var(--warning-bg);
@@ -184,27 +155,20 @@
     <button class="nav-btn" onclick="switchTab('lines')">Linie</button>
 </nav>
 
-<div class="container" style="padding-bottom: 50px;">
-    <!-- PRZYSTANKI -->
+<div class="container">
     <section id="sec-stops" class="section active">
         <input type="text" id="stop-search" placeholder="Szukaj konkretnego przystanku..." oninput="filterStops(this.value)">
         <div id="stops-list" class="msg-box">Wczytywanie bazy przystanków GTFS...</div>
     </section>
 
-    <!-- LINIE -->
     <section id="sec-lines" class="section">
         <div id="lines-list" class="msg-box">Wczytywanie linii z GTFS...</div>
     </section>
 
-    <!-- SZCZEGÓŁY ODJAZDÓW / LINII -->
     <section id="sec-details" class="section">
         <button class="back-btn" onclick="goBackDetails()">&larr; Powrót</button>
         <div id="details-content"></div>
     </section>
-</div>
-
-<div class="status-bar">
-    <span id="api-status">GTFS Engine Active</span>
 </div>
 
 <script>
@@ -214,8 +178,8 @@ window.appState = {
     tripsMap: new Map(),         
     rawStops: [],                
     stopTimes: [],               
-    realtimeDelays: new Map(),   // Przechowywanie opóźnień ogólnych (trip_id -> delay in seconds)
-    stopArrivalDelays: new Map(),// Szczegółowe opóźnienia na konkretnych przystankach (trip_id_stop_id -> delay in seconds)
+    realtimeDelays: new Map(),
+    stopArrivalDelays: new Map(),
     serviceIdsToday: new Set(),
     serviceIdsTomorrow: new Set(),
     activeServiceIds: new Set(), 
@@ -312,7 +276,7 @@ async function fetchRealtimeData() {
     try {
         await fetch('https://komunikacja.um.gorzow.pl/vm/main', { mode: 'no-cors' }).catch(() => null);
     } catch (e) {
-        console.warn("API komunikacja.um.gorzow niedostępne bezpośrednio przez przeglądarkę (CORS). Korzystam z silnika GTFS i propagacji opóźnień.");
+        console.warn("Brak danych realtime. Działa symulacja opóźnień.");
     }
 }
 
@@ -470,13 +434,13 @@ function refreshCurrentView() {
     const cv = window.appState.currentView;
     if (!cv || cv.type === 'none') return;
     if (cv.type === 'stops') {
-        // keep input filter active
+        // brak akcji
     } else if (cv.type === 'stopMenu') {
         loadDepartures(cv.stopIds, cv.stopName, undefined, true);
     } else if (cv.type === 'departures') {
         loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
     } else if (cv.type === 'lines') {
-        // static list
+        // brak akcji
     } else if (cv.type === 'lineRoute') {
         loadLineRoute(cv.lineId, cv.lineName, true);
     } else if (cv.type === 'lineDirection') {
@@ -491,7 +455,7 @@ function renderStops() { filterStops(''); }
 function filterStops(query) {
     const box = document.getElementById('stops-list');
     if (!window.appState.stops.length) {
-        box.innerHTML = '<div class="msg-box">Brak przystanków w pliku stops.txt.</div>';
+        box.innerHTML = '<div class="msg-box">Brak przystanków. Upewnij się, że pliki GTFS są wgrane.</div>';
         return;
     }
     const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
@@ -535,14 +499,12 @@ function getTripDelay(tripId, stopId = null) {
     return 0;
 }
 
-// Obliczanie opóźnienia z uwzględnieniem dojazdu na dany przystanek
 function calculateArrivalDelay(tripId, stopId, scheduledSec, currentSec) {
     const key = `${tripId}_${stopId}`;
     if (window.appState.stopArrivalDelays.has(key)) {
         return window.appState.stopArrivalDelays.get(key);
     }
 
-    // Jeśli pojazd minął rozkładowy czas, a nie odnotowano jeszcze przyjazdu, doliczamy opóźnienie do momentu aktualnego (lub symulowanego dojazdu)
     let generalDelay = window.appState.realtimeDelays.get(tripId) || 0;
     if (currentSec > scheduledSec) {
         const elapsedSinceScheduled = currentSec - scheduledSec;
