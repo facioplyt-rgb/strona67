@@ -313,7 +313,7 @@
     <section id="sec-search" class="section">
         <div class="search-card">
             <div class="search-input-group" style="margin-bottom: 0;">
-                <input type="text" id="route-from" placeholder="Skąd (przystanek początkowy)..." oninput="handleAutocomplete('from', this.value)" autocomplete="off">
+                <input type="text" id="route-from" placeholder="Skąd (przystanek początkowy)..." oninput="handleAutocomplete('from', this.value)" onfocus="handleAutocomplete('from', this.value)" autocomplete="off">
                 <div id="suggestions-from" class="autocomplete-suggestions" style="display:none;"></div>
             </div>
             
@@ -322,7 +322,7 @@
             </div>
 
             <div class="search-input-group">
-                <input type="text" id="route-to" placeholder="Dokąd (przystanek docelowy)..." oninput="handleAutocomplete('to', this.value)" autocomplete="off">
+                <input type="text" id="route-to" placeholder="Dokąd (przystanek docelowy)..." oninput="handleAutocomplete('to', this.value)" onfocus="handleAutocomplete('to', this.value)" autocomplete="off">
                 <div id="suggestions-to" class="autocomplete-suggestions" style="display:none;"></div>
             </div>
 
@@ -368,6 +368,19 @@ window.appState = {
     currentHeadsign: null,
     searchFromIds: [],
     searchToIds: []
+};
+
+// ==========================================
+// KULOODPORNA FUNKCJA KODUJĄCA ZMIENNE DO HTML
+// ==========================================
+window.safeArgs = function(...args) {
+    return args.map(arg => {
+        if (arg === undefined) return 'undefined';
+        if (arg === null) return 'null';
+        // Koduje zmienną JSON by uniknąć kolizji z cudzysłowami " oraz ' w HTML
+        let encoded = encodeURIComponent(JSON.stringify(arg)).replace(/'/g, "%27");
+        return `JSON.parse(decodeURIComponent('${encoded}'))`;
+    }).join(', ');
 };
 
 function goBackDetails() {
@@ -557,6 +570,20 @@ async function initApp() {
     });
     window.appState.lines = Array.from(linesMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
+    // Globalny click handler dla zamykania podpowiedzi tras, gdy się z nich nie korzysta
+    document.addEventListener('click', (e) => {
+        const fromInput = document.getElementById('route-from');
+        const toInput = document.getElementById('route-to');
+        if (e.target !== fromInput) {
+            const sug = document.getElementById('suggestions-from');
+            if(sug) sug.style.display = 'none';
+        }
+        if (e.target !== toInput) {
+            const sug = document.getElementById('suggestions-to');
+            if(sug) sug.style.display = 'none';
+        }
+    });
+
     renderStops();
     renderLines();
 }
@@ -609,7 +636,7 @@ function filterStops(query) {
         return;
     }
     box.innerHTML = filtered.map(s => `
-        <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)}, undefined)'>
+        <div class="row-item" onclick="loadDepartures(${window.safeArgs(s.ids, s.name, undefined)})">
             <div><strong>${s.name}</strong></div>
             <div style="font-size: 0.8rem; color: #cc0000; font-weight: 600;">Wybierz kierunek &rarr;</div>
         </div>
@@ -758,7 +785,7 @@ function renderStopDirectionsMenu(stopName, deps) {
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wybierz kierunek jazdy lub wyświetl wszystkie:</div>
         
-        <div class="row-item" style="background: var(--gray-light); border-left: 4px solid #cc0000; margin-bottom: 10px;" onclick='loadDeparturesWithHeadsign("all")'>
+        <div class="row-item" style="background: var(--gray-light); border-left: 4px solid #cc0000; margin-bottom: 10px;" onclick="loadDeparturesWithHeadsign('all')">
             <div>
                 <strong style="font-size: 0.95rem;">Wszystkie kierunki (wszystkie linie)</strong>
                 <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Łącznie kursów: ${deps.length}</div>
@@ -769,7 +796,7 @@ function renderStopDirectionsMenu(stopName, deps) {
         <div style="font-weight: 600; font-size: 0.9rem; margin: 14px 0 8px 0;">Kierunki docelowe:</div>
         <div>
             ${headsignsList.map(h => `
-                <div class="row-item" onclick='loadDeparturesWithHeadsign(${JSON.stringify(h.headsign)})'>
+                <div class="row-item" onclick="loadDeparturesWithHeadsign(${window.safeArgs(h.headsign)})">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div>
                             <strong style="font-size: 0.95rem;">&rarr; ${h.headsign}</strong>
@@ -853,14 +880,14 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
 
                 return `
                     <div id="${isNearest || d.activePos ? 'nearest-dep' : ''}" class="${rowClass}">
-                        <div style="display: flex; align-items: center; gap: 10px;" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
+                        <div style="display: flex; align-items: center; gap: 10px;" onclick="loadTripStops(${window.safeArgs(d.tripId, d.line, d.headsign)})">
                             <span class="${badgeClass}">${d.line}</span>
                             <div>
                                 <strong style="font-size: 0.95rem;">${d.headsign}</strong>
                                 ${infoHtml}
                             </div>
                         </div>
-                        <div class="time-box" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
+                        <div class="time-box" onclick="loadTripStops(${window.safeArgs(d.tripId, d.line, d.headsign)})">
                             <div class="time-main">${d.time}</div>
                             <div class="delay-info" style="${statusColor}">
                                 ${statusLabel}
@@ -878,7 +905,7 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                     const isNearest = (filtered.indexOf(d) === nearestIndex);
                     const badgeClass = 'badge blue';
                     return `
-                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(d.line)}, ${JSON.stringify(d.headsign)})'>
+                        <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}" onclick="loadTripStops(${window.safeArgs(d.tripId, d.line, d.headsign)})">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span class="${badgeClass}">${d.line}</span>
                                 <div>
@@ -935,7 +962,7 @@ function renderLines() {
         return;
     }
     box.innerHTML = window.appState.lines.map(l => `
-        <div class="row-item" onclick='loadLineRoute(${JSON.stringify(l.id)}, ${JSON.stringify(l.name)})'>
+        <div class="row-item" onclick="loadLineRoute(${window.safeArgs(l.id, l.name)})">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span class="badge blue">${l.id}</span>
                 <strong>${l.name}</strong>
@@ -992,7 +1019,7 @@ function loadLineRoute(lineId, lineName, isRefresh = false) {
         <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px;">Wybierz kierunek jazdy, aby zobaczyć kursy:</div>
         <div>
             ${directions.map(d => `
-                <div class="row-item" onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(d.headsign)}, 0)'>
+                <div class="row-item" onclick="loadLineDirection(${window.safeArgs(lineId, lineName, d.headsign, 0)})">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span class="badge blue">${lineId}</span>
                         <div>
@@ -1084,7 +1111,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                 else if (isNearest) rowClass += ' nearest';
 
                 return `
-                    <div id="${isNearest || d.activePos ? 'nearest-dep' : ''}" class="${rowClass}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
+                    <div id="${isNearest || d.activePos ? 'nearest-dep' : ''}" class="${rowClass}" onclick="loadTripStops(${window.safeArgs(d.tripId, lineId, headsign)})">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="${badgeClass}">${lineId}</span>
                             <div>
@@ -1105,9 +1132,9 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         
         <div style="margin-top: 20px; margin-bottom: 15px;">
             ${dayOffset === 0 ? `
-                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 1)' class="back-btn" style="width: 100%; text-align: center; background: #222; color: #fff; padding: 12px; font-size: 0.95rem;">Przejdź do rozkładu na następny dzień (Jutro) &rarr;</button>
+                <button onclick="loadLineDirection(${window.safeArgs(lineId, lineName, headsign, 1)})" class="back-btn" style="width: 100%; text-align: center; background: #222; color: #fff; padding: 12px; font-size: 0.95rem;">Przejdź do rozkładu na następny dzień (Jutro) &rarr;</button>
             ` : `
-                <button onclick='loadLineDirection(${JSON.stringify(lineId)}, ${JSON.stringify(lineName)}, ${JSON.stringify(headsign)}, 0)' class="back-btn" style="width: 100%; text-align: center; background: #222; color: #fff; padding: 12px; font-size: 0.95rem;">&larr; Wróć do rozkładu na dzisiaj</button>
+                <button onclick="loadLineDirection(${window.safeArgs(lineId, lineName, headsign, 0)})" class="back-btn" style="width: 100%; text-align: center; background: #222; color: #fff; padding: 12px; font-size: 0.95rem;">&larr; Wróć do rozkładu na dzisiaj</button>
             `}
         </div>
     `;
@@ -1200,8 +1227,10 @@ function handleAutocomplete(field, query) {
     }
 
     sugBox.style.display = 'block';
+    
+    // Za pomocą bezpiecznej funkcji kodującej (unika błędu w przypadku wystąpienia cudzysłowu w nazwie przystanku)
     sugBox.innerHTML = filtered.map(s => `
-        <div class="autocomplete-item" onmousedown="event.preventDefault(); selectSearchStop('${field}', ${JSON.stringify(s.name)}, ${JSON.stringify(s.ids)})">
+        <div class="autocomplete-item" onmousedown="event.preventDefault(); selectSearchStop('${field}', ${window.safeArgs(s.name, s.ids)})">
             <strong>${s.name}</strong>
         </div>
     `).join('');
@@ -1230,9 +1259,16 @@ function swapStops() {
 }
 
 function resolveStopIds(val, cachedIds) {
-    if (cachedIds && cachedIds.length) return cachedIds;
     if (!val) return [];
     const lower = val.toLowerCase();
+    
+    // Upewniamy się, czy użytkownik nie zaczął pisać czegoś innego po wybraniu
+    if (cachedIds && cachedIds.length) {
+        const stopMatch = window.appState.stops.find(s => s.ids.includes(cachedIds[0]));
+        if (stopMatch && stopMatch.name.toLowerCase() === lower) {
+            return cachedIds;
+        }
+    }
     
     const exactMatch = window.appState.stops.find(s => s.name.toLowerCase() === lower);
     if (exactMatch) return exactMatch.ids;
@@ -1505,7 +1541,7 @@ function searchConnections() {
 
         if (c.type === 'direct') {
             return `
-                <div class="route-result-card" onclick='loadTripStops(${JSON.stringify(c.tripId)}, ${JSON.stringify(c.line)}, ${JSON.stringify(c.headsign)})'>
+                <div class="route-result-card" onclick="loadTripStops(${window.safeArgs(c.tripId, c.line, c.headsign)})">
                     <div class="route-header-info">
                         <div>
                             <span style="font-size: 0.8rem; color: #aaa;">Odjazd za <strong style="color: #fff; font-size: 0.95rem;">${minsLeft} min</strong>${dayBadge}</span>
@@ -1533,7 +1569,7 @@ function searchConnections() {
             `;
         } else {
             return `
-                <div class="route-result-card" onclick='loadTripStops(${JSON.stringify(c.trip1Id)}, ${JSON.stringify(c.line1)}, ${JSON.stringify(c.headsign1)})'>
+                <div class="route-result-card" onclick="loadTripStops(${window.safeArgs(c.trip1Id, c.line1, c.headsign1)})">
                     <div class="route-header-info">
                         <div>
                             <span style="font-size: 0.8rem; color: #aaa;">Odjazd za <strong style="color: #fff; font-size: 0.95rem;">${minsLeft} min</strong>${dayBadge}</span>
