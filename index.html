@@ -134,22 +134,6 @@
         .delay-info { font-size: 0.75rem; font-weight: 600; color: var(--danger); margin-top: 2px; }
         .normal-info { font-size: 0.75rem; font-weight: 500; color: var(--gray-text); margin-top: 2px; }
 
-        .filter-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 14px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .filter-bar select {
-            padding: 6px 10px;
-            border: 1px solid var(--gray-border);
-            border-radius: 6px;
-            background: #fff;
-            font-size: 0.9rem;
-            outline: none;
-        }
-
         .status-bar {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -469,8 +453,10 @@ function refreshCurrentView() {
     if (!cv || cv.type === 'none') return;
     if (cv.type === 'stops') {
         // keep input filter active
+    } else if (cv.type === 'stopMenu') {
+        loadDepartures(cv.stopIds, cv.stopName, undefined, true);
     } else if (cv.type === 'departures') {
-        loadDepartures(cv.stopIds, cv.stopName, window.appState.currentHeadsign, true);
+        loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
     } else if (cv.type === 'lines') {
         // static list
     } else if (cv.type === 'lineRoute') {
@@ -521,9 +507,15 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
     if (!isRefresh) {
         switchTab('details');
         window.appState.backAction = () => switchTab('stops');
-        window.appState.currentView = { type: 'departures', stopIds, stopName };
+        window.appState.currentView = { 
+            type: selectedHeadsign === undefined ? 'stopMenu' : 'departures', 
+            stopIds, 
+            stopName, 
+            headsign: selectedHeadsign 
+        };
         window.appState.currentStopIds = stopIds;
         window.appState.currentStopName = stopName;
+        window.appState.currentHeadsign = selectedHeadsign;
     }
 
     const now = new Date();
@@ -588,15 +580,12 @@ function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefre
 
     window.appState.stopAllDeps = allDeps;
 
-    if (selectedHeadsign === undefined && !isRefresh) {
+    if (selectedHeadsign === undefined) {
         renderStopDirectionsMenu(stopName, allDeps);
         return;
     }
 
-    const currentHeadsign = selectedHeadsign !== undefined ? selectedHeadsign : (window.appState.currentHeadsign || 'all');
-    window.appState.currentHeadsign = currentHeadsign;
-
-    renderDeparturesFiltered(stopName, allDeps, currentHeadsign, isRefresh);
+    renderDeparturesFiltered(stopName, allDeps, selectedHeadsign, isRefresh);
 }
 
 function renderStopDirectionsMenu(stopName, deps) {
@@ -649,6 +638,12 @@ function renderStopDirectionsMenu(stopName, deps) {
 
 function loadDeparturesWithHeadsign(headsign) {
     window.appState.currentHeadsign = headsign;
+    window.appState.currentView = { 
+        type: 'departures', 
+        stopIds: window.appState.currentStopIds, 
+        stopName: window.appState.currentStopName, 
+        headsign: headsign 
+    };
     window.appState.backAction = () => loadDepartures(window.appState.currentStopIds, window.appState.currentStopName, undefined, false);
     renderDeparturesFiltered(window.appState.currentStopName, window.appState.stopAllDeps, headsign, false);
 }
