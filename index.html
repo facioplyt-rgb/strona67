@@ -172,6 +172,9 @@
 </div>
 
 <script>
+const DELAY_STORAGE_KEY = 'gtfs_delays_cache_v1';
+const EXPIRATION_MS = 24 * 60 * 60 * 1000; // Auto-czyszczenie po 24h
+
 window.appState = {
     stopsMap: new Map(),         
     routesMap: new Map(),        
@@ -195,6 +198,54 @@ window.appState = {
     stopAllDeps: [],
     currentHeadsign: null
 };
+
+// Zarządzanie pamięcią trwała opóźnień z retencją 24h
+function loadStoredDelays() {
+    try {
+        const raw = localStorage.getItem(DELAY_STORAGE_KEY);
+        if (!raw) return new Map();
+        const parsed = JSON.parse(raw);
+        const now = Date.now();
+        const validMap = new Map();
+        let expiredFound = false;
+
+        Object.keys(parsed).forEach(key => {
+            if (now - parsed[key].timestamp < EXPIRATION_MS) {
+                validMap.set(key, parsed[key].delay);
+            } else {
+                expiredFound = true;
+            }
+        });
+
+        if (expiredFound) {
+            saveStoredDelays(validMap);
+        }
+        return validMap;
+    } catch (e) {
+        return new Map();
+    }
+}
+
+function saveStoredDelays(map) {
+    try {
+        const now = Date.now();
+        const obj = {};
+        map.forEach((delay, key) => {
+            obj[key] = { delay: delay, timestamp: now };
+        });
+        localStorage.setItem(DELAY_STORAGE_KEY, JSON.stringify(obj));
+    } catch (e) {}
+}
+
+function recordDelay(tripId, delaySec, stopId = null) {
+    if (delaySec <= 0) return;
+    const key = stopId ? `${tripId}_${stopId}` : tripId;
+    window.appState.realtimeDelays.set(key, delaySec);
+    
+    const stored = loadStoredDelays();
+    stored.set(key, delaySec);
+    saveStoredDelays(stored);
+}
 
 function goBackDetails() {
     if (typeof window.appState.backAction === 'function') {
@@ -273,11 +324,7 @@ function getServiceIdsForDate(targetDate) {
 }
 
 async function fetchRealtimeData() {
-    try {
-        await fetch('https://komunikacja.um.gorzow.pl/vm/main', { mode: 'no-cors' }).catch(() => null);
-    } catch (e) {
-        console.warn("Brak danych realtime. Działa symulacja opóźnień.");
-    }
+    window.appState.realtimeDelays = loadStoredDelays();
 }
 
 async function loadStaticGTFS() {
@@ -433,14 +480,10 @@ function switchTab(tab) {
 function refreshCurrentView() {
     const cv = window.appState.currentView;
     if (!cv || cv.type === 'none') return;
-    if (cv.type === 'stops') {
-        // brak akcji
-    } else if (cv.type === 'stopMenu') {
+    if (cv.type === 'stopMenu') {
         loadDepartures(cv.stopIds, cv.stopName, undefined, true);
     } else if (cv.type === 'departures') {
         loadDepartures(cv.stopIds, cv.stopName, cv.headsign, true);
-    } else if (cv.type === 'lines') {
-        // brak akcji
     } else if (cv.type === 'lineRoute') {
         loadLineRoute(cv.lineId, cv.lineName, true);
     } else if (cv.type === 'lineDirection') {
@@ -455,7 +498,7 @@ function renderStops() { filterStops(''); }
 function filterStops(query) {
     const box = document.getElementById('stops-list');
     if (!window.appState.stops.length) {
-        box.innerHTML = '<div class="msg-box">Brak przystanków. Upewnij się, że pliki GTFS są wgrane.</div>';
+        box.innerHTML = '<div class="msg-box">Brak przystanków w plikach GTFS.</div>';
         return;
     }
     const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
@@ -489,8 +532,8 @@ function formatDelay(sec) {
 function getTripDelay(tripId, stopId = null) {
     if (stopId) {
         const key = `${tripId}_${stopId}`;
-        if (window.appState.stopArrivalDelays.has(key)) {
-            return window.appState.stopArrivalDelays.get(key);
+        if (window.appState.realtimeDelays.has(key)) {
+            return window.appState.realtimeDelays.get(key);
         }
     }
     if (window.appState.realtimeDelays.has(tripId)) {
@@ -500,21 +543,8 @@ function getTripDelay(tripId, stopId = null) {
 }
 
 function calculateArrivalDelay(tripId, stopId, scheduledSec, currentSec) {
-    const key = `${tripId}_${stopId}`;
-    if (window.appState.stopArrivalDelays.has(key)) {
-        return window.appState.stopArrivalDelays.get(key);
-    }
-
-    let generalDelay = window.appState.realtimeDelays.get(tripId) || 0;
-    if (currentSec > scheduledSec) {
-        const elapsedSinceScheduled = currentSec - scheduledSec;
-        if (elapsedSinceScheduled > generalDelay) {
-            generalDelay = elapsedSinceScheduled;
-        }
-    }
-    
-    window.appState.stopArrivalDelays.set(key, generalDelay);
-    return generalDelay;
+    // Odczyt opóźnienia wyłącznie z rzeczywistych zapisanych danych
+    return getTripDelay(tripId, stopId);
 }
 
 function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefresh = false) {
@@ -696,25 +726,25 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
         <div>
             ${!hasUpcomingTodayFiltered && todayFiltered.length > 0 ? `
                 <div class="alert-box">
-                    Brak kursów w dniu dzisiejszym dla tego filtra
+                    Brak kolejnych kursów w dniu dzisiejszym dla tego filtra
                 </div>
             ` : ''}
 
             ${todayFiltered.map(d => {
                 const isNearest = (filtered.indexOf(d) === nearestIndex);
                 let infoHtml = '';
-                let statusLabel = 'Rozkład planowy';
+                let statusLabel = 'Zgodnie z rozkładem';
                 let statusColor = 'color: var(--gray-text); font-weight:500;';
                 let badgeClass = 'badge blue';
 
                 if (d.delaySec > 0) {
                     if (d.isPast) {
                         badgeClass = 'badge red';
-                        statusLabel = `przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
+                        statusLabel = `Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
                         statusColor = 'color: var(--danger); font-weight:700;';
                     } else {
                         badgeClass = 'badge blue-red';
-                        statusLabel = `opóźnienie ${formatDelay(d.delaySec)}`;
+                        statusLabel = `Opóźnienie ${formatDelay(d.delaySec)}`;
                         statusColor = 'color: var(--danger); font-weight:600;';
                     }
                 }
@@ -722,12 +752,12 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                 if (!d.isPast) {
                     infoHtml = `<div class="countdown-info">${getCountdown(d.time, d.delaySec)}</div>`;
                     if (d.delaySec > 0) {
-                        infoHtml += `<div class="delay-info">Szacowane opóźnienie: ${formatDelay(d.delaySec)}</div>`;
+                        infoHtml += `<div class="delay-info">Opóźnienie: ${formatDelay(d.delaySec)}</div>`;
                     }
                 } else if (d.delaySec > 0) {
                     infoHtml = `
                         <div class="normal-info">Planowy przyjazd: ${d.time}</div>
-                        <div class="delay-info">przyjechał z opóźnieniem ${formatDelay(d.delaySec)}</div>
+                        <div class="delay-info">Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}</div>
                     `;
                 } else {
                     infoHtml = `<div class="normal-info">Odjechał planowo</div>`;
@@ -759,11 +789,10 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                 </div>
                 ${tomorrowFiltered.map(d => {
                     const isNearest = (filtered.indexOf(d) === nearestIndex);
-                    const badgeClass = d.delaySec > 0 ? 'badge blue-red' : 'badge blue';
                     return `
                         <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${isNearest ? 'nearest' : ''}">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span class="${badgeClass}">${d.line}</span>
+                                <span class="badge blue">${d.line}</span>
                                 <div>
                                     <strong style="font-size: 0.95rem;">${d.headsign}</strong>
                                     <div class="countdown-info">Planowy (Jutro)</div>
@@ -771,7 +800,7 @@ function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = fa
                             </div>
                             <div class="time-box">
                                 <div class="time-main">${d.time}</div>
-                                <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">Rozkład planowy</div>
+                                <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">Zgodnie z rozkładem</div>
                             </div>
                         </div>
                     `;
@@ -958,22 +987,22 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
 
     box.innerHTML = `
         <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${lineName} &rarr; ${headsign} (${dayLabel})</div>
-        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony. Możesz przewinąć w górę, aby zobaczyć wcześniejsze kursy.</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Najbliższy kurs jest automatycznie zaznaczony.</div>
         <div>
             ${allLineDepartures.length ? allLineDepartures.map((d, index) => {
                 const isNearest = (index === nearestIndex);
-                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Wg rozkładu');
+                let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Zgodnie z rozkładem');
                 let statusColor = 'color: var(--gray-text); font-weight:500;';
                 let badgeClass = 'badge blue';
 
                 if (d.delaySec > 0) {
                     if (d.isPast) {
                         badgeClass = 'badge red';
-                        statusLabel = `przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
+                        statusLabel = `Przyjechał z opóźnieniem ${formatDelay(d.delaySec)}`;
                         statusColor = 'color: var(--danger); font-weight:700;';
                     } else {
                         badgeClass = 'badge blue-red';
-                        statusLabel = `opóźnienie ${formatDelay(d.delaySec)}`;
+                        statusLabel = `Opóźnienie ${formatDelay(d.delaySec)}`;
                         statusColor = 'color: var(--danger); font-weight:600;';
                     }
                 } else if (d.isPast) {
@@ -1027,7 +1056,7 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
     }
     const box = document.getElementById('details-content');
     if (!isRefresh) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu ze wszystkich przystanków...</div>`;
+        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">Linia ${lineId} &rarr; ${headsign}</div><div class="msg-box">Ładowanie pełnej trasy kursu...</div>`;
     }
 
     const now = new Date();
@@ -1048,18 +1077,18 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         const stopDelay = calculateArrivalDelay(tripId, st.stop_id, timeSec, currentSec);
         const isPast = (timeSec + stopDelay) < currentSec;
 
-        let statusText = 'Rozkład planowy';
+        let statusText = 'Zgodnie z rozkładem';
         let statusStyle = 'color: var(--gray-text); font-weight: 500;';
 
         if (isPast) {
             if (stopDelay > 0) {
-                statusText = `przyjechał z opóźnieniem ${formatDelay(stopDelay)}`;
+                statusText = `Przyjechał z opóźnieniem ${formatDelay(stopDelay)}`;
                 statusStyle = 'color: var(--danger); font-weight: 600;';
             } else {
                 statusText = 'Odjechał';
             }
         } else if (stopDelay > 0) {
-            statusText = `opóźnienie ${formatDelay(stopDelay)}`;
+            statusText = `Opóźnienie ${formatDelay(stopDelay)}`;
             statusStyle = 'color: var(--danger); font-weight: 600;';
         }
 
