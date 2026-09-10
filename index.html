@@ -228,7 +228,11 @@ window.appState = {
     currentView: { type: 'none' },
     backAction: null,
     rawCalendarText: null,
-    rawCalendarDatesText: null
+    rawCalendarDatesText: null,
+    currentStopIds: null,
+    currentStopName: null,
+    stopAllDeps: [],
+    currentHeadsign: null
 };
 
 function goBackDetails() {
@@ -466,7 +470,7 @@ function refreshCurrentView() {
     if (cv.type === 'stops') {
         // keep input filter active
     } else if (cv.type === 'departures') {
-        loadDepartures(cv.stopIds, cv.stopName, true);
+        loadDepartures(cv.stopIds, cv.stopName, window.appState.currentHeadsign, true);
     } else if (cv.type === 'lines') {
         // static list
     } else if (cv.type === 'lineRoute') {
@@ -492,9 +496,9 @@ function filterStops(query) {
         return;
     }
     box.innerHTML = filtered.map(s => `
-        <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)})'>
+        <div class="row-item" onclick='loadDepartures(${JSON.stringify(s.ids)}, ${JSON.stringify(s.name)}, undefined)'>
             <div><strong>${s.name}</strong></div>
-            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Rozkład &rarr;</div>
+            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz kierunek &rarr;</div>
         </div>
     `).join('');
 }
@@ -513,26 +517,13 @@ function formatDelay(sec) {
     return `+${m} min ${s < 10 ? '0' : ''}${s} s`;
 }
 
-// Funkcja sprawdzająca opóźnienie z zewnętrznego API/źródła (np. portal pasażera komunikacja.um.gorzow)
-// Z racji działania na plikach statycznych GTFS, domyślnie przyjmujemy 0 (brak opóźnienia / rozkład planowy).
-// Możesz tutaj podpiąć faktyczny fetch do endpointu live GTFS-RT jeśli posiadasz jego adres.
-async function fetchLiveDelay(tripId, stopId) {
-    // Miejsce na zapytanie do API live komunikacja.um.gorzow / GTFS-RT
-    // Przykład: const res = await fetch(`https://komunikacja.um.gorzow.pl/api/...`);
-    // Na ten moment zwracamy 0 sekund opóźnienia dla rozkładu planowego, chyba że system live wskaże inaczej.
-    return 0; 
-}
-
-function loadDepartures(stopIds, stopName, isRefresh = false) {
+function loadDepartures(stopIds, stopName, selectedHeadsign = undefined, isRefresh = false) {
     if (!isRefresh) {
         switchTab('details');
         window.appState.backAction = () => switchTab('stops');
         window.appState.currentView = { type: 'departures', stopIds, stopName };
+        window.appState.currentStopIds = stopIds;
         window.appState.currentStopName = stopName;
-    }
-    const box = document.getElementById('details-content');
-    if (!isRefresh) {
-        box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${stopName}</div><div class="msg-box">Szukanie odjazdów w GTFS...</div>`;
     }
 
     const now = new Date();
@@ -555,18 +546,15 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
                 const arrSec = timeToSeconds(arrTimeStr);
 
                 if (dayOffset === 0) {
-                    // Pokaż kursy, które jeszcze nadejdą oraz te, które minęły niedawno (np. do 15 minut wstecz)
                     if (arrSec >= currentSec - 900 && arrSec <= 86399) {
                         const isPast = arrSec < currentSec;
-                        // Opóźnienie pobierane z zewnętrznego źródła / API (tutaj domyślnie 0, chyba że API zwróci opóźnienie)
-                        const delaySec = 0; 
                         list.push({
                             line: routeName,
                             headsign: trip.trip_headsign,
                             time: arrTimeStr.substring(0, 5),
                             sortSec: arrSec,
                             isPast: isPast,
-                            delaySec: delaySec,
+                            delaySec: 0,
                             dayOffset: 0
                         });
                     }
@@ -598,24 +586,77 @@ function loadDepartures(stopIds, stopName, isRefresh = false) {
         allDeps = allDeps.concat(depsTomorrow);
     }
 
-    window.appState.currentDeps = allDeps;
-    window.appState.isRefreshLoad = isRefresh;
-    renderDeparturesList();
+    window.appState.stopAllDeps = allDeps;
+
+    if (selectedHeadsign === undefined && !isRefresh) {
+        renderStopDirectionsMenu(stopName, allDeps);
+        return;
+    }
+
+    const currentHeadsign = selectedHeadsign !== undefined ? selectedHeadsign : (window.appState.currentHeadsign || 'all');
+    window.appState.currentHeadsign = currentHeadsign;
+
+    renderDeparturesFiltered(stopName, allDeps, currentHeadsign, isRefresh);
 }
 
-function renderDeparturesList(filterLine = 'all') {
+function renderStopDirectionsMenu(stopName, deps) {
     const box = document.getElementById('details-content');
-    const stopName = window.appState.currentStopName;
-    const deps = window.appState.currentDeps;
-    const isRefresh = window.appState.isRefreshLoad || false;
-
+    
     if (!deps.length) {
         box.innerHTML = `<div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div><div class="msg-box">Brak odjazdów dla tego przystanku.</div>`;
         return;
     }
 
-    const uniqueLines = Array.from(new Set(deps.map(d => d.line))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
-    const filtered = filterLine === 'all' ? deps : deps.filter(d => d.line === filterLine);
+    const headsignsMap = new Map();
+    deps.forEach(d => {
+        if (!headsignsMap.has(d.headsign)) {
+            headsignsMap.set(d.headsign, { headsign: d.headsign, lines: new Set(), count: 0 });
+        }
+        headsignsMap.get(d.headsign).lines.add(d.line);
+        headsignsMap.get(d.headsign).count++;
+    });
+
+    const headsignsList = Array.from(headsignsMap.values()).sort((a, b) => a.headsign.localeCompare(b.headsign));
+
+    box.innerHTML = `
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Wybierz kierunek jazdy lub wyświetl wszystkie:</div>
+        
+        <div class="row-item" style="background: var(--gray-light); border-left: 4px solid var(--info); margin-bottom: 10px;" onclick='loadDeparturesWithHeadsign("all")'>
+            <div>
+                <strong style="font-size: 0.95rem;">Wszystkie kierunki (wszystkie linie)</strong>
+                <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Łącznie kursów: ${deps.length}</div>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Pokaż &rarr;</div>
+        </div>
+
+        <div style="font-weight: 600; font-size: 0.9rem; margin: 14px 0 8px 0;">Kierunki docelowe:</div>
+        <div>
+            ${headsignsList.map(h => `
+                <div class="row-item" onclick='loadDeparturesWithHeadsign(${JSON.stringify(h.headsign)})'>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div>
+                            <strong style="font-size: 0.95rem;">&rarr; ${h.headsign}</strong>
+                            <div style="font-size: 0.75rem; color: var(--gray-text); margin-top: 2px;">Linie: ${Array.from(h.lines).sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true})).join(', ')} | Kursów: ${h.count}</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--info); font-weight: 600;">Wybierz &rarr;</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function loadDeparturesWithHeadsign(headsign) {
+    window.appState.currentHeadsign = headsign;
+    window.appState.backAction = () => loadDepartures(window.appState.currentStopIds, window.appState.currentStopName, undefined, false);
+    renderDeparturesFiltered(window.appState.currentStopName, window.appState.stopAllDeps, headsign, false);
+}
+
+function renderDeparturesFiltered(stopName, deps, headsignFilter, isRefresh = false) {
+    const box = document.getElementById('details-content');
+    
+    const filtered = headsignFilter === 'all' ? deps : deps.filter(d => d.headsign === headsignFilter);
 
     const now = new Date();
     const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -633,18 +674,13 @@ function renderDeparturesList(filterLine = 'all') {
     let nearestIndex = filtered.findIndex(d => !d.isPast);
 
     box.innerHTML = `
-        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
-        <div class="filter-bar">
-            <span style="font-weight:600; font-size:0.85rem;">Filtruj linię:</span>
-            <select onchange="renderDeparturesList(this.value)">
-                <option value="all" ${filterLine === 'all' ? 'selected' : ''}>Wszystkie linie (${deps.filter(d=>d.dayOffset===0).length})</option>
-                ${uniqueLines.map(l => `<option value="${l}" ${filterLine === String(l) ? 'selected' : ''}>Linia ${l}</option>`).join('')}
-            </select>
-        </div>
+        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 6px;">${stopName}</div>
+        <div style="font-size: 0.85rem; color: var(--gray-text); margin-bottom: 12px; margin-top: 6px;">Kierunek: <strong>${headsignFilter === 'all' ? 'Wszystkie kierunki' : headsignFilter}</strong></div>
+        
         <div>
             ${!hasUpcomingTodayFiltered && todayFiltered.length > 0 ? `
                 <div class="alert-box">
-                    Brak kursów w dniu dzisiejszym
+                    Brak kursów w dniu dzisiejszym dla tego filtra
                 </div>
             ` : ''}
 
@@ -712,8 +748,6 @@ function renderDeparturesList(filterLine = 'all') {
             ` : ''}
         </div>
     `;
-
-    window.appState.isRefreshLoad = false;
 
     if (nearestIndex !== -1 && !isRefresh) {
         setTimeout(() => {
@@ -869,7 +903,7 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
         const timeSec = timeToSeconds(timeStr);
 
         const isPast = dayOffset === 0 && timeSec < currentSec;
-        const delaySec = 0; // Opóźnienie z zewnętrznego API live (domyślnie 0)
+        const delaySec = 0;
 
         allLineDepartures.push({
             tripId: trip.tripId,
@@ -898,11 +932,6 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                 let statusLabel = dayOffset === 1 ? 'Planowy (Jutro)' : (d.isPast ? 'Odjechał' : 'Wg rozkładu');
                 let statusColor = d.isPast ? 'color: var(--gray-text); font-weight:500;' : 'color: var(--gray-text); font-weight:500;';
 
-                if (d.isPast && d.delaySec > 0) {
-                    statusLabel = `+${d.delaySec}s opóźn.`;
-                    statusColor = 'color: var(--danger); font-weight:700;';
-                }
-
                 return `
                     <div id="${isNearest ? 'nearest-dep' : ''}" class="dep-row ${d.isPast ? 'past' : ''} ${isNearest ? 'nearest' : ''}" onclick='loadTripStops(${JSON.stringify(d.tripId)}, ${JSON.stringify(lineId)}, ${JSON.stringify(headsign)})'>
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -910,10 +939,6 @@ function loadLineDirection(lineId, lineName, headsign, dayOffset = 0, isRefresh 
                             <div>
                                 <strong style="font-size: 0.95rem;">Odjazd: ${d.time} ${isNearest ? '<span style="color:var(--info); font-size:0.75rem;">(Najbliższy)</span>' : ''}</strong>
                                 <div style="font-size: 0.8rem; color: var(--gray-text); margin-top: 2px;">Start: <strong>${d.startStop}</strong></div>
-                                ${d.isPast && d.delaySec > 0 ? `
-                                    <div style="font-size: 0.75rem; color: var(--gray-text);">Planowy przyjazd: ${d.time}</div>
-                                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--danger);">Opóźnienie ${formatDelay(d.delaySec)}</div>
-                                ` : ''}
                             </div>
                         </div>
                         <div class="time-box">
@@ -973,7 +998,6 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
         const timeStr = st.arrival_time || st.departure_time || '';
         const timeSec = timeToSeconds(timeStr);
         const isPast = timeSec < currentSec;
-        const delaySec = 0; // Opóźnienie z zewnętrznego API live
 
         return `
             <div class="dep-row ${isPast ? 'past' : ''}" style="cursor: default;">
@@ -982,16 +1006,12 @@ function loadTripStops(tripId, lineId, headsign, isRefresh = false) {
                     <div>
                         <strong style="font-size: 0.95rem;">${cleanStopName(stopName)}</strong>
                         <div style="font-size: 0.75rem; color: var(--gray-text);">Przystanek na trasie</div>
-                        ${isPast && delaySec > 0 ? `
-                            <div style="font-size: 0.75rem; color: var(--gray-text);">Planowy przyjazd: ${timeStr.substring(0, 5)}</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--danger);">Opóźnienie ${formatDelay(delaySec)}</div>
-                        ` : ''}
                     </div>
                 </div>
                 <div class="time-box">
                     <div class="time-main">${timeStr.substring(0, 5)}</div>
-                    <div class="delay-info" style="${isPast && delaySec > 0 ? 'color: var(--danger); font-weight:700;' : 'color: var(--gray-text); font-weight:500;'}">
-                        ${isPast && delaySec > 0 ? `+${delaySec}s opóźn.` : (isPast ? 'Odjechał' : 'Rozkład planowy')}
+                    <div class="delay-info" style="color: var(--gray-text); font-weight: 500;">
+                        ${isPast ? 'Odjechał' : 'Rozkład planowy'}
                     </div>
                 </div>
             </div>
