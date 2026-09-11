@@ -73,7 +73,7 @@
         .section { display: none; }
         .section.active { display: block; }
 
-        input[type="text"] {
+        input[type="text"], input[type="date"], input[type="time"], select {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--gray-border);
@@ -82,8 +82,9 @@
             margin-bottom: 14px;
             outline: none;
             transition: border-color 0.2s;
+            background: #fff;
         }
-        input[type="text"]:focus { border-color: #cc0000; box-shadow: 0 0 0 3px rgba(204,0,0,0.15); }
+        input[type="text"]:focus, input[type="date"]:focus, input[type="time"]:focus, select:focus { border-color: #cc0000; box-shadow: 0 0 0 3px rgba(204,0,0,0.15); }
 
         .row-item {
             padding: 12px;
@@ -357,6 +358,44 @@
                 <div id="suggestions-to" class="autocomplete-suggestions" style="display:none;"></div>
             </div>
 
+            <!-- Przystanki pośrednie -->
+            <div style="margin-top: 10px; margin-bottom: 10px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px;">Przystanki pośrednie (opcjonalnie):</label>
+                <div id="via-stops-container"></div>
+                <button type="button" onclick="addViaStopInput()" class="back-btn" style="margin-top: 4px; width: auto; font-size: 0.8rem; padding: 4px 10px;">+ Dodaj przystanek pośredni</button>
+            </div>
+
+            <!-- Ustawienia czasu i dnia -->
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px;">Data:</label>
+                    <input type="date" id="route-date">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px;">Godzina:</label>
+                    <input type="time" id="route-time">
+                </div>
+            </div>
+
+            <!-- Wybór typu pojazdu -->
+            <div style="margin-top: 10px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px;">Typ pojazdu:</label>
+                <select id="vehicle-type-select">
+                    <option value="all">Wszystkie (Tramwaj i Autobus)</option>
+                    <option value="tram">Tylko Tramwaje</option>
+                    <option value="bus">Tylko Autobusy</option>
+                </select>
+            </div>
+
+            <!-- Wybór kryterium podróży -->
+            <div style="margin-top: 10px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px;">Kryterium wyszukiwania:</label>
+                <select id="route-criterion-select">
+                    <option value="fast">Najszybciej</option>
+                    <option value="convenient">Najwygodniej (najmniej przesiadek)</option>
+                </select>
+            </div>
+
             <button class="search-action-btn" onclick="searchConnections()">Pokaż trasy &rarr;</button>
         </div>
 
@@ -401,6 +440,7 @@ window.appState = {
     currentHeadsign: null,
     searchFromIds: [],
     searchToIds: [],
+    viaStopsData: [],
     lastConnections: []
 };
 
@@ -430,10 +470,19 @@ window.toggleStops = function(element, id) {
 window.getIntermediateStopsHtml = function(tripId, startSeq, endSeq, listId) {
     let tripStops = window.appState.tripStopsMap.get(String(tripId)) || [];
     
-    let intermediate = tripStops.filter(st => {
-        let seq = parseInt(st.stop_sequence || 0, 10);
-        return seq > startSeq && seq < endSeq;
-    });
+    // Obsługa cofania się lub powtórek w trasie (kolejność sekwencji może rosnąć lub maleć)
+    let intermediate = [];
+    if (startSeq < endSeq) {
+        intermediate = tripStops.filter(st => {
+            let seq = parseInt(st.stop_sequence || 0, 10);
+            return seq > startSeq && seq < endSeq;
+        });
+    } else {
+        intermediate = tripStops.filter(st => {
+            let seq = parseInt(st.stop_sequence || 0, 10);
+            return seq < startSeq && seq > endSeq;
+        });
+    }
 
     if (intermediate.length === 0) {
         return { count: 0, html: `<div class="timeline-stops-list" id="${listId}"><div class="timeline-stop-item">Brak przystanków pośrednich na tym odcinku.</div></div>` };
@@ -587,7 +636,6 @@ async function loadStaticGTFS() {
             window.appState.stopTimes = parseCSV(await stopTimesRes.text());
         }
 
-        // Fast indexing for lookup performance (fixes search freeze/lag)
         window.appState.tripStopsMap = new Map();
         window.appState.stopTimesByStop = new Map();
         window.appState.stopTimes.forEach(st => {
@@ -606,8 +654,6 @@ async function loadStaticGTFS() {
         });
 
         const tripLastStopMap = new Map();
-        const tripMaxSeq = new Map();
-
         window.appState.tripStopsMap.forEach((tripStops, tripId) => {
             if (tripStops.length > 0) {
                 const last = tripStops[tripStops.length - 1];
@@ -648,6 +694,19 @@ async function initApp() {
     startClock();
     await loadStaticGTFS();
 
+    // Ustawienie domyślnych wartości daty i godziny w formularzu
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const dateInput = document.getElementById('route-date');
+    if (dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const timeInput = document.getElementById('route-time');
+    if (timeInput) timeInput.value = `${hh}:${min}`;
+
     const groupedStops = new Map();
     window.appState.stopsMap.forEach((stopName, stopId) => {
         let cleanName = cleanStopName(stopName);
@@ -678,6 +737,10 @@ async function initApp() {
         if (e.target !== toInput) {
             const sug = document.getElementById('suggestions-to');
             if(sug) sug.style.display = 'none';
+        }
+        // Ukrywanie podpowiedzi przystanków pośrednich jeśli kliknięto poza
+        if (!e.target.closest('.via-input-group')) {
+            document.querySelectorAll('[id^="suggestions-via-"]').forEach(s => s.style.display = 'none');
         }
     });
 
@@ -1365,6 +1428,59 @@ function selectSearchStop(field, name, ids) {
     }
 }
 
+// Obsługa dodawania przystanków pośrednich
+function addViaStopInput() {
+    const container = document.getElementById('via-stops-container');
+    const index = window.appState.viaStopsData.length;
+    window.appState.viaStopsData.push({ name: '', ids: [] });
+
+    const div = document.createElement('div');
+    div.className = 'via-input-group search-input-group';
+    div.style.marginBottom = '8px';
+    div.innerHTML = `
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="route-via-${index}" placeholder="Przystanek pośredni..." oninput="handleViaAutocomplete(${index}, this.value)" onfocus="handleViaAutocomplete(${index}, this.value)" autocomplete="off" style="margin-bottom:0;">
+            <button type="button" onclick="removeViaStop(${index})" class="back-btn" style="margin-bottom:0; padding: 10px 12px; color: #cc0000;"><i class="fa-solid fa-trash"></i></button>
+        </div>
+        <div id="suggestions-via-${index}" class="autocomplete-suggestions" style="display:none;"></div>
+    `;
+    container.appendChild(div);
+}
+
+function removeViaStop(index) {
+    window.appState.viaStopsData[index] = null;
+    const inputGroup = document.getElementById(`route-via-${index}`).closest('.via-input-group');
+    if (inputGroup) inputGroup.remove();
+}
+
+function handleViaAutocomplete(index, query) {
+    window.appState.viaStopsData[index] = { name: query, ids: [] };
+    const sugBox = document.getElementById(`suggestions-via-${index}`);
+    if (!query || query.length < 1) {
+        sugBox.style.display = 'none';
+        return;
+    }
+
+    const filtered = window.appState.stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
+    if (!filtered.length) {
+        sugBox.style.display = 'none';
+        return;
+    }
+
+    sugBox.style.display = 'block';
+    sugBox.innerHTML = filtered.map(s => `
+        <div class="autocomplete-item" onmousedown="event.preventDefault(); selectViaStop(${index}, ${window.safeArgs(s.name, s.ids)})">
+            <strong>${s.name}</strong>
+        </div>
+    `).join('');
+}
+
+function selectViaStop(index, name, ids) {
+    document.getElementById(`route-via-${index}`).value = name;
+    document.getElementById(`suggestions-via-${index}`).style.display = 'none';
+    window.appState.viaStopsData[index] = { name, ids };
+}
+
 function swapStops() {
     const fromInput = document.getElementById('route-from');
     const toInput = document.getElementById('route-to');
@@ -1419,24 +1535,56 @@ function searchConnections() {
         return;
     }
 
+    // Pobranie ustawionej daty i godziny
+    const dateVal = document.getElementById('route-date').value;
+    const timeVal = document.getElementById('route-time').value;
+    
+    let queryDate = new Date();
+    if (dateVal) {
+        const parts = dateVal.split('-').map(Number);
+        queryDate.setFullYear(parts[0], parts[1] - 1, parts[2]);
+    }
+    if (timeVal) {
+        const parts = timeVal.split(':').map(Number);
+        queryDate.setHours(parts[0], parts[1], 0, 0);
+    }
+    
+    const currentSec = queryDate.getHours() * 3600 + queryDate.getMinutes() * 60 + queryDate.getSeconds();
+    const targetServiceIds = getServiceIdsForDate(queryDate);
+    const dayOffset = 0; // Wyszukiwanie dla wybranej daty
+
+    // Pobranie filtra typu pojazdu oraz kryterium
+    const vehicleType = document.getElementById('vehicle-type-select').value;
+    const criterion = document.getElementById('route-criterion-select').value;
+
+    // Przetworzenie przystanków pośrednich
+    let activeViaStops = [];
+    window.appState.viaStopsData.forEach(via => {
+        if (via && via.name && via.name.trim() !== '') {
+            let resolvedViaIds = resolveStopIds(via.name, via.ids);
+            if (resolvedViaIds.length > 0) {
+                activeViaStops.push(new Set(resolvedViaIds.map(String)));
+            }
+        }
+    });
+
     const fromSet = new Set(fromIds.map(String));
     const toSet = new Set(toIds.map(String));
 
-    let isOverlap = false;
-    fromSet.forEach(id => { if (toSet.has(id)) isOverlap = true; });
-    if (isOverlap && fromVal.toLowerCase() === toVal.toLowerCase()) {
-        resultsBox.innerHTML = '<div class="msg-box" style="color: #cc0000; font-weight: bold;">Przystanek początkowy i docelowy muszą być różne!</div>';
-        return;
-    }
-
-    resultsBox.innerHTML = '<div class="msg-box">Wyszukiwanie optymalnych połączeń (bezpośrednie i wieloprzesiadkowe)...</div>';
-
-    const now = new Date();
-    const currentSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    resultsBox.innerHTML = '<div class="msg-box">Wyszukiwanie optymalnych połączeń...</div>';
 
     let connections = [];
 
-    function findConnectionsForServiceSet(serviceIds, dayOffset = 0) {
+    function isLineMatchingVehicleType(lineName) {
+        if (vehicleType === 'all') return true;
+        let num = parseInt(lineName, 10);
+        let isTram = (!isNaN(num) && num < 10);
+        if (vehicleType === 'tram' && isTram) return true;
+        if (vehicleType === 'bus' && !isTram) return true;
+        return false;
+    }
+
+    function findConnectionsForServiceSet(serviceIds) {
         let fromTrips = new Map();
 
         fromSet.forEach(stopId => {
@@ -1446,8 +1594,11 @@ function searchConnections() {
                 if (!trip) return;
                 if (serviceIds && serviceIds.size > 0 && !serviceIds.has(trip.service_id)) return;
 
+                const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
+                if (!isLineMatchingVehicleType(routeName)) return;
+
                 const timeSec = timeToSeconds(st.arrival_time || st.departure_time);
-                if (dayOffset === 0 && timeSec < currentSec - 900) return;
+                if (timeSec < currentSec - 900) return;
 
                 if (!fromTrips.has(st.trip_id)) {
                     fromTrips.set(st.trip_id, []);
@@ -1461,6 +1612,27 @@ function searchConnections() {
             });
         });
 
+        // Pomocnicza funkcja sprawdzająca przystanki pośrednie (z uwzględnieniem cofania się i powtórek w trasie)
+        function checkViaStops(tripStops, startSeq, endSeq) {
+            if (activeViaStops.length === 0) return true;
+            let tripStopIds = tripStops.map(st => String(st.stop_id));
+            let tripStopSeqs = tripStops.map(st => parseInt(st.stop_sequence || 0, 10));
+
+            for (let viaSet of activeViaStops) {
+                let found = false;
+                for (let i = 0; i < tripStops.length; i++) {
+                    let seq = tripStopSeqs[i];
+                    let inRange = (startSeq < endSeq) ? (seq > startSeq && seq < endSeq) : (seq < startSeq && seq > endSeq);
+                    if (inRange && viaSet.has(tripStopIds[i])) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+            }
+            return true;
+        }
+
         // 1. Połączenia bezpośrednie
         toSet.forEach(stopId => {
             const times = window.appState.stopTimesByStop.get(stopId) || [];
@@ -1469,9 +1641,11 @@ function searchConnections() {
                     const fromEntries = fromTrips.get(st.trip_id);
                     const toSeq = parseInt(st.stop_sequence || 0, 10);
                     const toSec = timeToSeconds(st.arrival_time || st.departure_time);
+                    const tripStops = window.appState.tripStopsMap.get(st.trip_id) || [];
 
                     fromEntries.forEach(fromInfo => {
-                        if (toSeq > fromInfo.seq) {
+                        let isValidSeq = (fromInfo.seq < toSeq) || (fromInfo.seq > toSeq); // Obsługa cofania/powtórek
+                        if (isValidSeq && checkViaStops(tripStops, fromInfo.seq, toSeq)) {
                             const trip = window.appState.tripsMap.get(st.trip_id);
                             if (trip) {
                                 const routeName = window.appState.routesMap.get(trip.route_id) || 'MZK';
@@ -1494,7 +1668,8 @@ function searchConnections() {
                                     arrTime: formatTimeStr(st.arrival_time || st.departure_time),
                                     arrSec: toSec,
                                     duration: durationMins,
-                                    dayOffset: dayOffset
+                                    dayOffset: dayOffset,
+                                    transfersCount: 0
                                 });
                             }
                         }
@@ -1521,7 +1696,8 @@ function searchConnections() {
                     const arrSec = timeToSeconds(st.arrival_time || st.departure_time);
 
                     leg1Infos.forEach(info => {
-                        if (seq > info.seq && !toSet.has(String(st.stop_id))) {
+                        let isValidSeq = (info.seq < seq) || (info.seq > seq);
+                        if (isValidSeq && !toSet.has(String(st.stop_id))) {
                             firstLegArrivals.push({
                                 tripId: tripId,
                                 transferStopId: st.stop_id,
@@ -1552,6 +1728,9 @@ function searchConnections() {
                 if (!trip2) return;
                 if (serviceIds && serviceIds.size > 0 && !serviceIds.has(trip2.service_id)) return;
 
+                const routeName2 = window.appState.routesMap.get(trip2.route_id) || 'MZK';
+                if (!isLineMatchingVehicleType(routeName2)) return;
+
                 const transSeq2 = parseInt(st.stop_sequence || 0, 10);
                 const transDepSec = timeToSeconds(st.departure_time || st.arrival_time);
 
@@ -1563,11 +1742,12 @@ function searchConnections() {
                         tripStops2.forEach(stEnd => {
                             if (toSet.has(String(stEnd.stop_id))) {
                                 const endSeq2 = parseInt(stEnd.stop_sequence || 0, 10);
-                                if (endSeq2 > transSeq2) {
+                                let isValidSeq2 = (transSeq2 < endSeq2) || (transSeq2 > endSeq2);
+                                if (isValidSeq2) {
                                     const trip1 = window.appState.tripsMap.get(transOpt.tripId);
                                     if (trip1) {
                                         const line1 = window.appState.routesMap.get(trip1.route_id) || 'MZK';
-                                        const line2 = window.appState.routesMap.get(trip2.route_id) || 'MZK';
+                                        const line2 = routeName2;
                                         const destArrSec = timeToSeconds(stEnd.arrival_time || stEnd.departure_time);
                                         
                                         let durSec = destArrSec - transOpt.depSec;
@@ -1600,7 +1780,8 @@ function searchConnections() {
                                             transDepSec: transDepSec,
                                             duration: totalMins,
                                             waitMins: Math.round(waitSec / 60),
-                                            dayOffset: dayOffset
+                                            dayOffset: dayOffset,
+                                            transfersCount: 1
                                         });
                                     }
                                 }
@@ -1610,109 +1791,23 @@ function searchConnections() {
                 });
             });
         });
-
-        // Przesiadka 2 (wieloprzesiadkowe: 2 przesiadki / 3 linie)
-        firstLegArrivals.forEach(leg1 => {
-            const stopTimesAtStop1 = window.appState.stopTimesByStop.get(leg1.transferStopId) || [];
-            stopTimesAtStop1.forEach(stMid1 => {
-                const tripMid = window.appState.tripsMap.get(stMid1.trip_id);
-                if (!tripMid || tripMid.trip_id === leg1.tripId) return;
-                if (serviceIds && serviceIds.size > 0 && !serviceIds.has(tripMid.service_id)) return;
-
-                const midDepSec = timeToSeconds(stMid1.departure_time || stMid1.arrival_time);
-                const wait1 = midDepSec - leg1.arrSec;
-                if (wait1 >= 60 && wait1 <= 2700) {
-                    const midSeqStart = parseInt(stMid1.stop_sequence || 0, 10);
-                    const tripStopsMid = window.appState.tripStopsMap.get(stMid1.trip_id) || [];
-                    
-                    tripStopsMid.forEach(stMid2 => {
-                        const midSeqEnd = parseInt(stMid2.stop_sequence || 0, 10);
-                        if (midSeqEnd > midSeqStart && !toSet.has(String(stMid2.stop_id))) {
-                            const midArrSec = timeToSeconds(stMid2.arrival_time || stMid2.departure_time);
-                            
-                            const stopTimesAtStop2 = window.appState.stopTimesByStop.get(stMid2.stop_id) || [];
-                            stopTimesAtStop2.forEach(stFinal1 => {
-                                const tripFinal = window.appState.tripsMap.get(stFinal1.trip_id);
-                                if (!tripFinal || tripFinal.trip_id === stMid1.trip_id) return;
-                                if (serviceIds && serviceIds.size > 0 && !serviceIds.has(tripFinal.service_id)) return;
-
-                                const finalDepSec = timeToSeconds(stFinal1.departure_time || stFinal1.arrival_time);
-                                const wait2 = finalDepSec - midArrSec;
-                                if (wait2 >= 60 && wait2 <= 2700) {
-                                    const finalSeqStart = parseInt(stFinal1.stop_sequence || 0, 10);
-                                    const tripStopsFinal = window.appState.tripStopsMap.get(stFinal1.trip_id) || [];
-
-                                    tripStopsFinal.forEach(stFinal2 => {
-                                        if (toSet.has(String(stFinal2.stop_id))) {
-                                            const finalSeqEnd = parseInt(stFinal2.stop_sequence || 0, 10);
-                                            if (finalSeqEnd > finalSeqStart) {
-                                                const finalArrSec = timeToSeconds(stFinal2.arrival_time || stFinal2.departure_time);
-                                                const trip1 = window.appState.tripsMap.get(leg1.tripId);
-                                                const line1 = window.appState.routesMap.get(trip1.route_id) || 'MZK';
-                                                const line2 = window.appState.routesMap.get(tripMid.route_id) || 'MZK';
-                                                const line3 = window.appState.routesMap.get(tripFinal.route_id) || 'MZK';
-
-                                                let durSec = finalArrSec - leg1.depSec;
-                                                if (durSec < 0) durSec += 86400;
-
-                                                connections.push({
-                                                    type: 'transfer2',
-                                                    trip1Id: leg1.tripId,
-                                                    trip2Id: stMid1.trip_id,
-                                                    trip3Id: stFinal1.trip_id,
-                                                    line1: line1,
-                                                    line2: line2,
-                                                    line3: line3,
-                                                    headsign1: trip1.trip_headsign,
-                                                    headsign2: tripMid.trip_headsign,
-                                                    headsign3: tripFinal.trip_headsign,
-                                                    startStopName: leg1.startStopName,
-                                                    transferStop1Name: cleanStopName(window.appState.stopsMap.get(leg1.transferStopId)),
-                                                    transferStop2Name: cleanStopName(window.appState.stopsMap.get(stMid2.stop_id)),
-                                                    endStopName: cleanStopName(window.appState.stopsMap.get(stFinal2.stop_id)),
-                                                    startSeq1: leg1.startSeq,
-                                                    endSeq1: leg1.arrSeq,
-                                                    startSeq2: midSeqStart,
-                                                    endSeq2: midSeqEnd,
-                                                    startSeq3: finalSeqStart,
-                                                    endSeq3: finalSeqEnd,
-                                                    depTime: leg1.depTime,
-                                                    depSec: leg1.depSec,
-                                                    absDepSec: leg1.depSec + (dayOffset * 86400),
-                                                    arrTime: formatTimeStr(stFinal2.arrival_time || stFinal2.departure_time),
-                                                    arrSec: finalArrSec,
-                                                    trans1ArrTime: leg1.arrTime,
-                                                    trans1ArrSec: leg1.arrSec,
-                                                    trans1DepTime: formatTimeStr(stMid1.departure_time || stMid1.arrival_time),
-                                                    trans1DepSec: midDepSec,
-                                                    trans2ArrTime: formatTimeStr(stMid2.arrival_time || stMid2.departure_time),
-                                                    trans2ArrSec: midArrSec,
-                                                    trans2DepTime: formatTimeStr(stFinal1.departure_time || stFinal1.arrival_time),
-                                                    trans2DepSec: finalDepSec,
-                                                    duration: Math.max(1, Math.round(durSec / 60)),
-                                                    wait1Mins: Math.round(wait1 / 60),
-                                                    wait2Mins: Math.round(wait2 / 60),
-                                                    dayOffset: dayOffset
-                                                });
-                                            }
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-        });
     }
 
-    findConnectionsForServiceSet(window.appState.serviceIdsToday, 0);
-
-    if (connections.length < 5 && window.appState.serviceIdsTomorrow) {
-        findConnectionsForServiceSet(window.appState.serviceIdsTomorrow, 1);
-    }
+    findConnectionsForServiceSet(targetServiceIds);
 
     const uniqueMap = new Map();
+    connections.sort((a, b) => {
+        if (criterion === 'convenient') {
+            if (a.transfersCount !== b.transfersCount) return a.transfersCount - b.transfersCount;
+            if (a.absDepSec !== b.absDepSec) return a.absDepSec - b.absDepSec;
+            return a.duration - b.duration;
+        } else {
+            // 'fast' (Najszybciej)
+            if (a.absDepSec !== b.absDepSec) return a.absDepSec - b.absDepSec;
+            return a.duration - b.duration;
+        }
+    });
+
     connections.forEach(c => {
         let key = '';
         if (c.type === 'direct') key = `dir-${c.tripId}-${c.depTime}-${c.dayOffset}`;
@@ -1722,15 +1817,10 @@ function searchConnections() {
     });
     connections = Array.from(uniqueMap.values());
 
-    connections.sort((a, b) => {
-        if (a.absDepSec !== b.absDepSec) return a.absDepSec - b.absDepSec;
-        return a.duration - b.duration;
-    });
-
     window.appState.lastConnections = connections;
 
     if (!connections.length) {
-        resultsBox.innerHTML = '<div class="msg-box">Brak połączeń bezpośrednich lub przesiadkowych w rozkładzie jazdy.</div>';
+        resultsBox.innerHTML = '<div class="msg-box">Brak połączeń bezpośrednich lub przesiadkowych w rozkładzie jazdy dla wybranych kryteriów.</div>';
         return;
     }
 
@@ -1749,7 +1839,8 @@ function renderSearchConnectionsResults(connections, currentSec) {
 
         if (c.type === 'direct') {
             let uid = `stops_dir_${idx}`;
-            let tColor = parseInt(c.line, 10) < 10 ? 'tram' : 'bus';
+            let num = parseInt(c.line, 10);
+            let tColor = (!isNaN(num) && num < 10) ? 'tram' : 'bus';
             let stopsData = getIntermediateStopsHtml(c.tripId, c.startSeq, c.endSeq, uid);
 
             let isPassed = minsLeft === 0 && diffSec <= 0;
@@ -1803,8 +1894,10 @@ function renderSearchConnectionsResults(connections, currentSec) {
         } else if (c.type === 'transfer1') {
             let uid1 = `stops_t1_${idx}`;
             let uid2 = `stops_t2_${idx}`;
-            let tColor1 = parseInt(c.line1, 10) < 10 ? 'tram' : 'bus';
-            let tColor2 = parseInt(c.line2, 10) < 10 ? 'tram' : 'bus';
+            let num1 = parseInt(c.line1, 10);
+            let num2 = parseInt(c.line2, 10);
+            let tColor1 = (!isNaN(num1) && num1 < 10) ? 'tram' : 'bus';
+            let tColor2 = (!isNaN(num2) && num2 < 10) ? 'tram' : 'bus';
             
             let stopsData1 = getIntermediateStopsHtml(c.trip1Id, c.startSeq1, c.endSeq1, uid1);
             let stopsData2 = getIntermediateStopsHtml(c.trip2Id, c.startSeq2, c.endSeq2, uid2);
@@ -1887,142 +1980,6 @@ function renderSearchConnectionsResults(connections, currentSec) {
                             <div class="timeline-time-col"><div class="timeline-time-badge bg-${tColor2}">${c.arrTime}</div></div>
                             <div class="timeline-graphic">
                                 <div class="timeline-node node-${tColor2}"></div>
-                            </div>
-                            <div class="timeline-content last">
-                                <div class="timeline-stop-name">${c.endStopName}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            let uid1 = `stops_t1_${idx}`;
-            let uid2 = `stops_t2_${idx}`;
-            let uid3 = `stops_t3_${idx}`;
-            let tColor1 = parseInt(c.line1, 10) < 10 ? 'tram' : 'bus';
-            let tColor2 = parseInt(c.line2, 10) < 10 ? 'tram' : 'bus';
-            let tColor3 = parseInt(c.line3, 10) < 10 ? 'tram' : 'bus';
-            
-            let stopsData1 = getIntermediateStopsHtml(c.trip1Id, c.startSeq1, c.endSeq1, uid1);
-            let stopsData2 = getIntermediateStopsHtml(c.trip2Id, c.startSeq2, c.endSeq2, uid2);
-            let stopsData3 = getIntermediateStopsHtml(c.trip3Id, c.startSeq3, c.endSeq3, uid3);
-
-            let isPassed = minsLeft === 0 && diffSec <= 0;
-            let countdownHtml = isPassed 
-                ? `<span style="color: #6e7781; font-weight: 700; background: #e1e4e8; padding: 2px 6px; border-radius: 4px;">Odjechał</span>`
-                : `Odjazd za <strong style="color: #1a1a1a; font-size: 0.95rem;">${minsLeft} min</strong>${dayBadge}`;
-
-            return `
-                <div class="route-result-card">
-                    <div class="route-header-info">
-                        <div><span style="font-size: 0.8rem; color: var(--gray-text);" id="search-countdown-${idx}">${countdownHtml}</span></div>
-                        <div><span class="route-step-badge" style="background: #b45309;">${c.duration} min (2 przesiadki)</span></div>
-                    </div>
-                    
-                    <div class="timeline-container">
-                        <div class="timeline-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge bg-${tColor1}">${c.depTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-${tColor1}"></div>
-                                <div class="timeline-line line-${tColor1}"></div>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-stop-name">${c.startStopName}</div>
-                                <div class="timeline-leg-info">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span class="badge blue bg-${tColor1}" style="color:#fff; border-color:transparent;">${c.line1}</span>
-                                        <span style="font-size:0.85rem; color:#1a1a1a; font-weight:600;">&rarr; ${c.headsign1}</span>
-                                    </div>
-                                    <div style="font-size:0.8rem; color:var(--gray-text);">${getDurationMins(c.depSec, c.trans1ArrSec)} min</div>
-                                </div>
-                                <div class="timeline-stops-toggle" onclick="toggleStops(this, '${uid1}')">
-                                    <span>${stopsData1.count} przystanków</span>
-                                    <i class="fa-solid fa-chevron-down"></i>
-                                </div>
-                                ${stopsData1.html}
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge" style="background:#e1e4e8; color:#333;">${c.trans1ArrTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-transfer"></div>
-                                <div class="timeline-line line-walk"></div>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-stop-name">${c.transferStop1Name}</div>
-                                <div class="timeline-leg-info" style="margin-top: 8px; margin-bottom: 16px;">
-                                    <span style="color:var(--gray-text); font-size:0.85rem;"><i class="fa-solid fa-person-walking"></i> 1. Przesiadka</span>
-                                    <span style="font-size:0.8rem; color:var(--gray-text);">${c.wait1Mins} min oczekiwania</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="timeline-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge bg-${tColor2}">${c.trans1DepTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-${tColor2}"></div>
-                                <div class="timeline-line line-${tColor2}"></div>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-stop-name">${c.transferStop1Name}</div>
-                                <div class="timeline-leg-info">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span class="badge blue bg-${tColor2}" style="color:#fff; border-color:transparent;">${c.line2}</span>
-                                        <span style="font-size:0.85rem; color:#1a1a1a; font-weight:600;">&rarr; ${c.headsign2}</span>
-                                    </div>
-                                    <div style="font-size:0.8rem; color:var(--gray-text);">${getDurationMins(c.trans1DepSec, c.trans2ArrSec)} min</div>
-                                </div>
-                                <div class="timeline-stops-toggle" onclick="toggleStops(this, '${uid2}')">
-                                    <span>${stopsData2.count} przystanków</span>
-                                    <i class="fa-solid fa-chevron-down"></i>
-                                </div>
-                                ${stopsData2.html}
-                            </div>
-                        </div>
-
-                        <div class="timeline-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge" style="background:#e1e4e8; color:#333;">${c.trans2ArrTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-transfer"></div>
-                                <div class="timeline-line line-walk"></div>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-stop-name">${c.transferStop2Name}</div>
-                                <div class="timeline-leg-info" style="margin-top: 8px; margin-bottom: 16px;">
-                                    <span style="color:var(--gray-text); font-size:0.85rem;"><i class="fa-solid fa-person-walking"></i> 2. Przesiadka</span>
-                                    <span style="font-size:0.8rem; color:var(--gray-text);">${c.wait2Mins} min oczekiwania</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="timeline-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge bg-${tColor3}">${c.trans2DepTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-${tColor3}"></div>
-                                <div class="timeline-line line-${tColor3}"></div>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-stop-name">${c.transferStop2Name}</div>
-                                <div class="timeline-leg-info">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span class="badge blue bg-${tColor3}" style="color:#fff; border-color:transparent;">${c.line3}</span>
-                                        <span style="font-size:0.85rem; color:#1a1a1a; font-weight:600;">&rarr; ${c.headsign3}</span>
-                                    </div>
-                                    <div style="font-size:0.8rem; color:var(--gray-text);">${getDurationMins(c.trans2DepSec, c.arrSec)} min</div>
-                                </div>
-                                <div class="timeline-stops-toggle" onclick="toggleStops(this, '${uid3}')">
-                                    <span>${stopsData3.count} przystanków</span>
-                                    <i class="fa-solid fa-chevron-down"></i>
-                                </div>
-                                ${stopsData3.html}
-                            </div>
-                        </div>
-
-                        <div class="timeline-row last-row">
-                            <div class="timeline-time-col"><div class="timeline-time-badge bg-${tColor3}">${c.arrTime}</div></div>
-                            <div class="timeline-graphic">
-                                <div class="timeline-node node-${tColor3}"></div>
                             </div>
                             <div class="timeline-content last">
                                 <div class="timeline-stop-name">${c.endStopName}</div>
